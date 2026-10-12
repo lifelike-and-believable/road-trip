@@ -16,6 +16,7 @@ Given a start and end location, a start and end time, and whether the trip is a 
 
 - Verify (run before reporting work as done, and include its output): `npm run verify`
 - Dev server: `npm run dev` (check for one already running first)
+- Live check against the real map and Claude services (not part of verify): `npm run live`; add `LIVE_SOURCES=1` to also find sources, which spends money. Never run it unprompted.
 
 ## Project decisions
 

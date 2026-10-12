@@ -45,3 +45,4 @@ playwright-report/
 test-results/
 .lighthouseci/
 !.env.example
+live-output/
