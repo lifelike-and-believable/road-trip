@@ -1,10 +1,14 @@
-/* The one place the app calls Claude. Each request searches the web for event
-   sources near a few stops. Written against the installed SDK's types. */
+/* The one place the app calls Claude: requests that search the web, and can
+   read pages, for event sources and listings. Written against the installed
+   SDK's types. */
 
 import Anthropic from "@anthropic-ai/sdk";
 import { SourcesError, type Ask } from "./sources";
 
-const DEFAULT_MODEL = "claude-opus-5-5";
+const DEFAULT_MODEL = "claude-sonnet-5-5";
+/* Pinned, because the default differs by model (Claude Sonnet 5.5 high, Claude Opus 5.5 medium):
+   left unset, changing ANTHROPIC_MODEL would quietly change how much is spent on reasoning. */
+const EFFORT = "medium";
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 const MAX_SEARCHES = 6;
 const MAX_FETCHES = 10;
@@ -34,6 +38,7 @@ export function makeAsk(client?: Anthropic): Ask {
           max_tokens: MAX_TOKENS,
           betas: [FALLBACK_BETA],
           fallbacks: "default",
+          output_config: { effort: EFFORT },
           system,
           tools: tools === "search+fetch" ? [SEARCH_TOOL, FETCH_TOOL] : [SEARCH_TOOL],
           messages,

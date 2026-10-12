@@ -39,10 +39,10 @@ afterEach(() => {
 });
 
 describe("askModel", () => {
-  it("defaults to Claude Opus 5.5 and can be overridden", () => {
-    expect(askModel()).toBe("claude-opus-5-5");
-    process.env.ANTHROPIC_MODEL = "claude-sonnet-5-5";
+  it("defaults to Claude Sonnet 5.5 and can be overridden", () => {
     expect(askModel()).toBe("claude-sonnet-5-5");
+    process.env.ANTHROPIC_MODEL = "claude-opus-5-5";
+    expect(askModel()).toBe("claude-opus-5-5");
   });
 });
 
@@ -57,7 +57,7 @@ describe("makeAsk", () => {
     expect(out).toEqual({ text: '{"sources":[]}', searches: 2, inputTokens: 10, outputTokens: 5 });
 
     const { body, headers } = sent[0];
-    expect(body.model).toBe("claude-opus-5-5");
+    expect(body.model).toBe("claude-sonnet-5-5");
     expect(body.system).toBe("SYS");
     expect(body.messages).toEqual([{ role: "user", content: "USER" }]);
     expect(body.tools).toEqual([{ type: "web_search_20260209", name: "web_search", max_uses: 6 }]);
@@ -67,10 +67,10 @@ describe("makeAsk", () => {
   });
 
   it("uses the configured model", async () => {
-    process.env.ANTHROPIC_MODEL = "claude-sonnet-5-5";
+    process.env.ANTHROPIC_MODEL = "claude-opus-5-5";
     const { client, sent } = clientReplying({ body: message([text("{}")]) });
     await makeAsk(client)(ask);
-    expect(sent[0].body.model).toBe("claude-sonnet-5-5");
+    expect(sent[0].body.model).toBe("claude-opus-5-5");
   });
 
   it("resumes a paused turn by sending the assistant content back, with no extra user message", async () => {
