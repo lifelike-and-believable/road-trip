@@ -2,12 +2,22 @@
 
 Enter a start and end location, a start and end time, and whether the trip is one way or a round trip. Road Trip lists the events and activities along the road between the two places, in the style of the Montreal Weekend Board.
 
-Status: early. Trips can be created, listed, read and deleted through the API, and a trip stops being active when its end time passes. The route corridor, the event sources and the listings can be built, and a daily job (Vercel Cron) keeps the listings of active trips up to date. The trip board is not built yet. [PLAN.md](PLAN.md) sequences the rest.
+Status: early. Trips can be created, listed, read and deleted through the API, and a trip stops being active when its end time passes. The route corridor, the event sources and the listings can be built, and a daily job (Vercel Cron) keeps the listings of active trips up to date. The trip board is built: sign in with the passcode, make a trip, and pick from what is on along the road. It is not an installable app yet. [PLAN.md](PLAN.md) sequences the rest.
 
 ## Commands
 
     npm run dev        development server
     npm run verify     typecheck, lint, unit tests, build
+
+## Using it
+
+Open the app's address and sign in with the passcode (`BOARD_PASSCODE`).
+
+- **Make a trip** on the home page: where from and to, when you leave and when you are back or must arrive, and whether it is a round trip with time at the destination. The form sends each time with your own clock's offset.
+- **Open the trip** for its board. If its route has not been built yet there is a button to build it now, and then one to find its event sources; otherwise a daily job does both. The listings come from the daily routine (see "Who reads the listings") and appear on the board once it has run.
+- **The board** shows what is on, day by day in the trip's time zone, with the day sections folding. Filter by category, free only or starred. Star what you like, and add one or two stops to your plan.
+- **Your plan** lists the picks in time order with the time between each. A drive time appears only between two stops on the same leg of the trip, as the route's own estimate without traffic, and says so. An overlap, a back to back, or a drive longer than the gap is flagged. A flexible pick (a museum or park) is placed at the earliest time inside its opening hours that clears your other picks, drive included, and says so if it cannot be fitted.
+- A trip that has ended stays readable but cannot be changed.
 
 ## API
 
@@ -19,7 +29,10 @@ All routes except `/api/health` and `/api/login` need the session cookie or the 
     GET    /api/trips          trips, soonest first, each with status and legs
     POST   /api/trips          {from, to, start, end, roundTrip, turnaround? | stay?, tz?}
     GET    /api/trips/<id>
-    DELETE /api/trips/<id>     also removes the trip's corridor, sources and listings
+    DELETE /api/trips/<id>     also removes the trip's corridor, sources, listings and plan
+    GET    /api/trips/<id>/board      everything one board needs: the trip, corridor, source count, listings and plan
+    GET    /api/trips/<id>/plan       the traveller's picks and stars
+    PUT    /api/trips/<id>/plan       replace them: {picks: [{id, at?}], starred: [id]}; refused once the trip has ended
     POST   /api/trips/<id>/corridor   build the route corridor once (active trips only)
     GET    /api/trips/<id>/corridor   the stored corridor
     POST   /api/trips/<id>/sources    find event sources for the corridor's stops once (needs the corridor)
