@@ -47,7 +47,9 @@ export class SourcesError extends Error {
 }
 
 export type AskResult = { text: string; searches: number; inputTokens: number; outputTokens: number };
-export type Ask = (request: { system: string; user: string }) => Promise<AskResult>;
+/** `tools` defaults to searching only; "search+fetch" also lets the model read the pages named in the request. */
+export type AskRequest = { system: string; user: string; tools?: "search" | "search+fetch" };
+export type Ask = (request: AskRequest) => Promise<AskResult>;
 export type SourceDeps = { ask: Ask; model: string };
 
 const KINDS: SourceKind[] = ["tourism", "municipal", "venue", "festival", "ticketing", "other"];
@@ -92,7 +94,7 @@ function userPrompt(trip: Trip, batch: Stop[]): string {
   ].join("\n");
 }
 
-function cleanUrl(raw: unknown): string | null {
+export function cleanUrl(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   let u: URL;
   try {
@@ -110,7 +112,7 @@ function cleanUrl(raw: unknown): string | null {
 
 const keyOf = (url: string) => url.replace(/\/$/, "");
 
-function jsonObjectIn(text: string): unknown {
+export function jsonObjectIn(text: string): unknown {
   const stripped = text.replace(/```(?:json)?/gi, "");
   try {
     return JSON.parse(stripped);

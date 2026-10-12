@@ -7,6 +7,9 @@ import { SourcesError, type Ask } from "./sources";
 const DEFAULT_MODEL = "claude-opus-5-5";
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 const MAX_SEARCHES = 6;
+const MAX_FETCHES = 10;
+const SEARCH_TOOL = { type: "web_search_20260209", name: "web_search", max_uses: MAX_SEARCHES } as const;
+const FETCH_TOOL = { type: "web_fetch_20260209", name: "web_fetch", max_uses: MAX_FETCHES } as const;
 const MAX_TOKENS = 16_000;
 /** A search-heavy turn can pause before it finishes; resume it a few times at most. */
 const MAX_PAUSES = 4;
@@ -19,7 +22,7 @@ export function makeAsk(client?: Anthropic): Ask {
   }
   const anthropic = client ?? new Anthropic();
 
-  return async ({ system, user }) => {
+  return async ({ system, user, tools }) => {
     const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: user }];
     let searches = 0;
     let inputTokens = 0;
@@ -32,7 +35,7 @@ export function makeAsk(client?: Anthropic): Ask {
           betas: [FALLBACK_BETA],
           fallbacks: "default",
           system,
-          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: MAX_SEARCHES }],
+          tools: tools === "search+fetch" ? [SEARCH_TOOL, FETCH_TOOL] : [SEARCH_TOOL],
           messages,
         });
         searches += response.content.filter((b) => b.type === "server_tool_use" && b.name === "web_search").length;

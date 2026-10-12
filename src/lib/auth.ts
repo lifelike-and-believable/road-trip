@@ -65,12 +65,11 @@ export function isAuthed(req: Request): boolean {
   }
 }
 
-/** Bearer-token auth for the refresh job. */
+/** Bearer-token auth for the refresh job: REFRESH_SECRET for a manual call, or the CRON_SECRET Vercel's scheduler sends. */
 export function isRefreshJob(req: Request): boolean {
-  const want = process.env.REFRESH_SECRET;
-  if (!want) return false;
   const got = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  return !!got && safeEqual(got, want);
+  if (!got) return false;
+  return [process.env.REFRESH_SECRET, process.env.CRON_SECRET].some((want) => !!want && safeEqual(got, want));
 }
 
 /** A 401 response when the request may not proceed, otherwise null. */

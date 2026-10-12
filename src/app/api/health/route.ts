@@ -13,6 +13,7 @@ export async function GET(req: Request) {
       DOC_SALT: has("DOC_SALT"),
       REFRESH_SECRET: has("REFRESH_SECRET"),
       ANTHROPIC_API_KEY: has("ANTHROPIC_API_KEY"),
+      CRON_SECRET: has("CRON_SECRET"),
       redis: has("KV_REST_API_URL") || has("UPSTASH_REDIS_REST_URL"),
     },
   });

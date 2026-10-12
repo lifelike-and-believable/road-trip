@@ -4,10 +4,13 @@
 
      npm run live                      corridor only: free, uses OpenStreetMap
      LIVE_SOURCES=1 npm run live       also find sources with Claude: spends money
+     LIVE_LISTINGS=1 npm run live      also read the first few places for events: spends more
+                                       (this finds the sources first, so LIVE_SOURCES is not also needed)
 
    Optional settings:
      LIVE_FROM, LIVE_TO     place names (default Montréal, QC to New York City, NY)
      LIVE_STAY_MIN          minutes to stay at the destination (default 2880)
+     LIVE_MAX_STOPS         how many places to read for listings (default 3)
      LIVE_PRICE_PER_MTOK    "input,output" dollars per million tokens, to show a token cost
                             (for example "4,20"; check the model's current price)
 
@@ -16,16 +19,20 @@
    NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt so Node's fetch uses the proxy. */
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { askModel, makeAsk } from "../src/lib/anthropic";
 import { buildCorridor, type Corridor } from "../src/lib/corridor";
-import { buildSources, stopBatches } from "../src/lib/sources";
+import { refreshListings } from "../src/lib/refresh";
+import { buildSources, stopBatches, type SourceList } from "../src/lib/sources";
 import { parseTripInput, type Trip } from "../src/lib/trip";
 
 const HOUR = 3_600_000;
 const out: Record<string, unknown> = {};
 let trip: Trip;
 let corridor: Corridor;
+let sourceList: SourceList;
+const wantListings = process.env.LIVE_LISTINGS === "1";
+const wantSources = process.env.LIVE_SOURCES === "1" || wantListings;
 
 const fmt = (iso: string) => new Date(iso).toISOString().replace("T", " ").slice(0, 16) + "Z";
 
@@ -35,6 +42,8 @@ function save() {
   writeFileSync(file, JSON.stringify(out, null, 2));
   console.log(`\nFull output written to ${file}`);
 }
+
+afterAll(() => save());
 
 describe("live check", () => {
   it("builds the corridor", async () => {
@@ -69,15 +78,15 @@ describe("live check", () => {
       }
     }
     expect(corridor.legs.length).toBeGreaterThan(0);
-    if (process.env.LIVE_SOURCES !== "1") save();
   });
 
-  it.runIf(process.env.LIVE_SOURCES === "1")("finds sources with Claude", async () => {
+  it.runIf(wantSources)("finds sources with Claude", async () => {
     const batches = stopBatches(corridor);
     console.log(`\nAsking ${askModel()} about ${batches.flat().length} places in ${batches.length} requests (up to 6 web searches each). This spends money.`);
 
     const t0 = Date.now();
     const list = await buildSources(trip, corridor, new Date(), { ask: makeAsk(), model: askModel() });
+    sourceList = list;
     const seconds = ((Date.now() - t0) / 1000).toFixed(1);
     out.sources = list;
 
@@ -97,6 +106,30 @@ describe("live check", () => {
       console.log("Set LIVE_PRICE_PER_MTOK=input,output to show a token cost. Web searches are billed separately.");
     }
     expect(list.sources.length).toBeGreaterThan(0);
-    save();
+  });
+
+  it.runIf(wantListings)("reads the first few places for events", async () => {
+    const maxStops = Number(process.env.LIVE_MAX_STOPS || 3);
+    console.log(`\nReading up to ${maxStops} places with ${askModel()} (web searches and page reads each). This spends money.`);
+
+    const t0 = Date.now();
+    const { doc, report } = await refreshListings(trip, corridor, sourceList, null, new Date(), {
+      ask: makeAsk(),
+      maxStops,
+    });
+    const seconds = ((Date.now() - t0) / 1000).toFixed(1);
+    out.listings = { doc, report };
+
+    console.log(`\nListings: read in ${seconds}s. Updated: ${report.updated.join(", ") || "none"}. Failed: ${report.failed.map((f) => `${f.stop} (${f.code})`).join(", ") || "none"}. Not reached: ${report.remaining}. No sources: ${report.noSources.join(", ") || "none"}.`);
+    for (const [stop, entry] of Object.entries(doc.stops)) {
+      const fixedCount = entry.listings.filter((l) => l.schedule.kind === "fixed").length;
+      console.log(`\n${stop}: ${entry.listings.length} listings (${fixedCount} fixed, ${entry.listings.length - fixedCount} flexible)`);
+      for (const l of entry.listings) {
+        const when = l.schedule.kind === "fixed" ? fmt(l.schedule.start) : `open ${l.schedule.hours.map((h) => `${fmt(h.opens)}-${fmt(h.closes).slice(-6)}`).join(", ")}`;
+        console.log(`  [${l.category}; ${l.cost}] ${l.title}${l.venue ? ` at ${l.venue}` : ""}, ${when}\n      ${l.url ?? l.source}`);
+      }
+    }
+    console.log(`\nTokens: ${report.usage.inputTokens} in, ${report.usage.outputTokens} out`);
+    expect(report.failed).toEqual([]);
   });
 });

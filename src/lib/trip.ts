@@ -44,6 +44,8 @@ function instant(v: unknown): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
+export { instant as parseInstant };
+
 function parsePlace(name: string, v: unknown, errors: string[]): Place | null {
   if (!isRecord(v)) {
     errors.push(`${name}.label is required`);
