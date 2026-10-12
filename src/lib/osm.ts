@@ -65,6 +65,17 @@ export async function geocode(query: string): Promise<{ lat: number; lon: number
 
 const PLACE_KEYS = ["city", "town", "village", "municipality", "hamlet", "county"] as const;
 
+// OpenStreetMap names many New York, New Jersey and Ontario places by their
+// legal form, "Town of Plattsburgh". The bare name is what listings use.
+// This also turns "City of Industry, California" into "Industry".
+const LEGAL_FORM = /^(?:town|city|village|township|borough|municipality) of\s+(\S.*)$/i;
+
+export function cleanPlaceName(name: string): string {
+  const trimmed = name.trim();
+  const match = LEGAL_FORM.exec(trimmed);
+  return match ? match[1].trim() : trimmed;
+}
+
 /** The town or municipality at a point, or null where the map names none. */
 export async function reverseName(lat: number, lon: number): Promise<{ name: string; region?: string } | null> {
   const url = new URL(`${NOMINATIM}/reverse`);
@@ -78,9 +89,10 @@ export async function reverseName(lat: number, lon: number): Promise<{ name: str
   const address = body.address;
   for (const key of PLACE_KEYS) {
     const name = address[key];
-    if (typeof name === "string" && name) {
+    if (typeof name === "string" && name.trim()) {
       const region = address.state;
-      return typeof region === "string" && region ? { name, region } : { name };
+      const clean = cleanPlaceName(name);
+      return typeof region === "string" && region ? { name: clean, region } : { name: clean };
     }
   }
   return null;
