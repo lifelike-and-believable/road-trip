@@ -3,6 +3,9 @@ name: Guards
 # Secret scan (SEC-001) and test change guard (TEST-001) from rules-for-robots.
 on:
   pull_request:
+    # labeled and unlabeled run the guards again when a reviewer adds or removes
+    # tests-reviewed; the test change guard reads the labels from the event.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
