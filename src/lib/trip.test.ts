@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeTrips, isActive, legsOf, parseTripInput, tripStatus, type Trip } from "./trip";
+import { activeTrips, isActive, legsOf, parseTripInput, presentTrip, tripStatus, type Trip } from "./trip";
 
 const NOW = new Date("2026-10-12T12:00:00Z");
 
@@ -102,6 +102,33 @@ describe("parseTripInput", () => {
   });
 });
 
+describe("stay at the turnaround point", () => {
+  const rt = { ...base, roundTrip: true };
+
+  it("accepts a stay in whole minutes on a round trip", () => {
+    expect(parsed({ ...rt, stay: 2880 }).stay).toBe(2880);
+  });
+
+  it("rejects a stay on a one-way trip, or together with a turnaround", () => {
+    expect(parseTripInput({ ...base, stay: 600 }, NOW).ok).toBe(false);
+    const r = parseTripInput({ ...rt, stay: 600, turnaround: "2026-10-17T16:00:00Z" }, NOW);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors).toContain("give either stay or turnaround, not both");
+  });
+
+  it("rejects a stay that is not a positive whole number of minutes", () => {
+    for (const stay of [0, -5, 1.5, "600", null, Number.NaN]) {
+      expect(parseTripInput({ ...rt, stay }, NOW).ok).toBe(false);
+    }
+  });
+
+  it("rejects a stay as long as the whole trip, which leaves no time to drive", () => {
+    // the window is 56 hours: 3360 minutes
+    expect(parseTripInput({ ...rt, stay: 3360 }, NOW).ok).toBe(false);
+    expect(parseTripInput({ ...rt, stay: 3359 }, NOW).ok).toBe(true);
+  });
+});
+
 describe("legsOf", () => {
   it("gives one outbound leg for a one-way trip", () => {
     const t = trip();
@@ -123,6 +150,38 @@ describe("legsOf", () => {
     const [out, back] = legsOf(t);
     expect(out.end).toBe("2026-10-17T18:00:00.000Z");
     expect(back.start).toBe(out.end);
+  });
+});
+
+describe("legsOf with a stay", () => {
+  const t = () => trip({ roundTrip: true, stay: 1440 });
+
+  it("leaves the outbound end and the return start open until the drive time is known", () => {
+    const [out, back] = legsOf(t());
+    expect(out).toMatchObject({ id: "out", start: "2026-10-16T14:00:00.000Z", end: null });
+    expect(back).toMatchObject({ id: "back", start: null, end: "2026-10-18T22:00:00.000Z" });
+  });
+
+  it("starts the return at outbound arrival plus the stay once the drive time is known", () => {
+    // 14:00 + 300 minutes driving + 24 hours
+    const [out, back] = legsOf(t(), 300);
+    expect(out.end).toBe("2026-10-17T19:00:00.000Z");
+    expect(back.start).toBe("2026-10-17T19:00:00.000Z");
+    expect(back.end).toBe("2026-10-18T22:00:00.000Z");
+  });
+
+  it("ignores the drive time when there is a turnaround or neither", () => {
+    const withTurn = trip({ roundTrip: true, turnaround: "2026-10-17T16:00:00Z" });
+    expect(legsOf(withTurn, 300)).toEqual(legsOf(withTurn));
+    const neither = trip({ roundTrip: true });
+    expect(legsOf(neither, 300)).toEqual(legsOf(neither));
+  });
+
+  it("is reported by presentTrip with the open times as null", () => {
+    const shown = presentTrip(t(), NOW);
+    expect(shown.stay).toBe(1440);
+    expect(shown.legs[0].end).toBeNull();
+    expect(shown.legs[1].start).toBeNull();
   });
 });
 
