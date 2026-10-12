@@ -2,8 +2,8 @@ import { clearCookie, issueCookie, safeEqual } from "../../../lib/auth";
 import { readJson } from "../../../lib/http";
 
 export async function POST(req: Request) {
-  const want = process.env.APP_PASSCODE;
-  if (!want) return Response.json({ error: "APP_PASSCODE is not set" }, { status: 500 });
+  const want = process.env.BOARD_PASSCODE;
+  if (!want) return Response.json({ error: "BOARD_PASSCODE is not set" }, { status: 500 });
 
   const body = await readJson(req, 1024);
   if (!body.ok) return body.response;
