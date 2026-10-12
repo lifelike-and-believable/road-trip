@@ -32,7 +32,7 @@ Times carry an offset (`2026-10-16T10:00:00-04:00`). On a round trip, `turnaroun
 
 ## Settings
 
-`AUTH_SECRET`, `APP_PASSCODE`, `DOC_SALT`, `REFRESH_SECRET`, `CRON_SECRET` (the same value as `REFRESH_SECRET`; Vercel's scheduler sends it), and the Upstash Redis variables `KV_REST_API_URL` and `KV_REST_API_TOKEN`. `ANTHROPIC_API_KEY` is needed to find sources. Optional: `ANTHROPIC_MODEL` (default `claude-opus-5-5`; a cheaper model lowers the cost of each trip), `OSM_CONTACT`, an email address or URL that OpenStreetMap's services can reach you at, sent in the user agent as their usage policy asks.
+`AUTH_SECRET`, `APP_PASSCODE`, `DOC_SALT`, `REFRESH_SECRET`, `CRON_SECRET` (the same value as `REFRESH_SECRET`; Vercel's scheduler sends it), and the Upstash Redis variables `KV_REST_API_URL` and `KV_REST_API_TOKEN`. `ANTHROPIC_API_KEY` is needed to find sources. Optional: `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`; `claude-opus-5-5` costs about twice as much per token, and a model that does not support the effort setting, such as an older generation, is refused), `OSM_CONTACT`, an email address or URL that OpenStreetMap's services can reach you at, sent in the user agent as their usage policy asks.
 
 ## Finishing setup
 
