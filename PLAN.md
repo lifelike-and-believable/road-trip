@@ -9,7 +9,7 @@ One slice per branch and pull request. Update this file when a slice answers an 
 | # | Slice | Delivers | Pull requests |
 |---|---|---|---|
 | 1 | Trips and lifecycle | Trip model and validation, one-way and round-trip legs, active/ended status, Redis store, passcode auth, trips API, health check | [#1](https://github.com/lifelike-and-believable/road-trip/pull/1) |
-| 2 | Route corridor | Geocode the two places, fetch the driving route, and derive the towns and regions along it with an estimated pass-through window for each (an arrival time per leg, from the route's own duration) | |
+| 2 | Route corridor | Geocode the two places, fetch the driving route, and derive the towns and regions along it with an estimated pass-through window for each (an arrival time per leg, from the route's own duration) | [#3](https://github.com/lifelike-and-believable/road-trip/pull/3) |
 | 3 | Event sources | From the corridor, build a list of sources per trip (tourism boards, municipal calendars, venue and festival pages, ticketing pages) and store it with the trip. The list is reviewed, not fixed: a later refresh may add to it | |
 | 4 | Refresh | A scheduled job reads each source for active trips only, writes listings with their place along the route and the window in which the traveller is there, and skips and leaves alone any trip whose end has passed | |
 | 5 | Trip board | The Montreal board's look: trip form, day sections that fold, category chips, sticky filters, free-or-ticketed marking, stars, and a picks itinerary | |
