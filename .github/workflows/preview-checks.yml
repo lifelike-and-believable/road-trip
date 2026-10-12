@@ -1,0 +1,39 @@
+name: Preview checks
+
+# Runs end-to-end, accessibility (WEB-001), and Lighthouse (WEB-003) checks against each
+# successful Vercel preview deployment. Needs the repository secret
+# VERCEL_AUTOMATION_BYPASS_SECRET when deployment protection is on.
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Preview'
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ github.event.deployment_status.environment_url }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - name: Lighthouse CI (median of 3 runs)
+        run: npx --yes @lhci/cli autorun --collect.url="$BASE_URL" --collect.settings.extraHeaders="{\"x-vercel-protection-bypass\":\"$VERCEL_AUTOMATION_BYPASS_SECRET\"}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preview-reports
+          path: |
+            playwright-report/
+            .lighthouseci/
+          if-no-files-found: ignore

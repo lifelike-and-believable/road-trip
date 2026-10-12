@@ -1,0 +1,14 @@
+name: Guards
+
+# Secret scan (SEC-001) and test change guard (TEST-001) from rules-for-robots.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guards:
+    uses: lifelike-and-believable/rules-for-robots/.github/workflows/rfr-guards.yml@main

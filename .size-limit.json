@@ -1,0 +1,7 @@
+[
+  {
+    "name": "Client JavaScript, all routes",
+    "path": ".next/static/chunks/**/*.js",
+    "limit": "250 kB"
+  }
+]

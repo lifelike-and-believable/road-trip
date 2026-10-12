@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # typecheck, lint, unit tests, and next build (TS-001, NEXT-003, WA-001)
+      - run: npm run verify
+      # per-route JavaScript budgets (WEB-003)
+      - run: npx size-limit
+
+  migrations:
+    # Lint new migration SQL (PG-002). Breaking changes need expand and contract.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Find changed migrations
+        id: changed
+        run: |
+          files=$(git diff --name-only --diff-filter=AM "${{ github.event.pull_request.base.sha }}...HEAD" -- '*.sql' | grep -E '(migrations|drizzle|prisma)/' || true)
+          echo "files=$(echo $files)" >> "$GITHUB_OUTPUT"
+      - name: squawk
+        if: steps.changed.outputs.files != ''
+        run: npx --yes squawk-cli ${{ steps.changed.outputs.files }}
+
+  status:
+    # One comment on the pull request when CI finishes, naming the head commit, so whoever
+    # waits on CI is notified instead of polling. Confirm checks on the current head before merging.
+    needs: [verify, migrations]
+    if: always()
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: lifelike-and-believable/rules-for-robots/.github/workflows/rfr-ci-status.yml@main
+    with:
+      results: ${{ toJSON(needs) }}
