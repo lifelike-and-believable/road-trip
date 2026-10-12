@@ -27,6 +27,8 @@ export type PipelineDeps = {
   deadline: number;
   maxStops?: number;
   concurrency?: number;
+  /** False when the routine posts the listings: the corridor and sources are still built here. Default true. */
+  readListings?: boolean;
 };
 
 export type TripRun = {
@@ -68,7 +70,7 @@ async function runTrip(trip: Trip, deps: PipelineDeps): Promise<TripRun> {
     }
   }
 
-  if (late()) return run;
+  if (late() || deps.readListings === false) return run;
   try {
     const previous = await deps.getDoc<ListingsDoc>(`listings/${trip.id}`);
     const { doc, report } = await refreshListings(trip, corridor, sources, previous, now, {

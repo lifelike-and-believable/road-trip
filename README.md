@@ -26,13 +26,14 @@ All routes except `/api/health` and `/api/login` need the session cookie or the 
     GET    /api/trips/<id>/sources    the stored list
     POST   /api/trips/<id>/listings   read the places that are due for events (needs corridor and sources); ?force=1 reads recent ones too
     GET    /api/trips/<id>/listings   the stored listings
-    GET    /api/refresh        the daily job, called by Vercel Cron with CRON_SECRET; POST runs it by hand with REFRESH_SECRET
+    PUT    /api/trips/<id>/listings   the routine posts the listings it read, place by place (REFRESH_SECRET only; see docs/routine-prompt.md)
+    GET    /api/refresh        the daily job, called by Vercel Cron with CRON_SECRET; POST runs it by hand with REFRESH_SECRET. It builds each active trip's corridor and sources; it reads the listings itself only when LISTINGS_BY is "cron"
 
 Times carry an offset (`2026-10-16T10:00:00-04:00`). On a round trip, `turnaround` is the instant the return begins; `stay` is instead the minutes to spend at the destination after arriving (give one, not both), and the return's start is then worked out once the route is known. `status` is `upcoming`, `underway` or `ended`; only the first two are refreshed.
 
 ## Settings
 
-`AUTH_SECRET`, `APP_PASSCODE`, `DOC_SALT`, `REFRESH_SECRET`, `CRON_SECRET` (the same value as `REFRESH_SECRET`; Vercel's scheduler sends it), and the Upstash Redis variables `KV_REST_API_URL` and `KV_REST_API_TOKEN`. `ANTHROPIC_API_KEY` is needed to find sources. Optional: `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`; `claude-opus-5-5` costs about twice as much per token, and a model that does not support the effort setting, such as an older generation, is refused), `OSM_CONTACT`, an email address or URL that OpenStreetMap's services can reach you at, sent in the user agent as their usage policy asks.
+`AUTH_SECRET`, `BOARD_PASSCODE`, `DOC_SALT`, `REFRESH_SECRET`, `CRON_SECRET` (the same value as `REFRESH_SECRET`; Vercel's scheduler sends it), and the Upstash Redis variables `KV_REST_API_URL` and `KV_REST_API_TOKEN`. `ANTHROPIC_API_KEY` is needed to find sources. Optional: `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`; `claude-opus-5-5` costs about twice as much per token, and a model that does not support the effort setting, such as an older generation, is refused), `LISTINGS_BY` (`routine`, the default, or `cron`; see below), `OSM_CONTACT`, an email address or URL that OpenStreetMap's services can reach you at, sent in the user agent as their usage policy asks.
 
 ## Finishing setup
 
@@ -44,7 +45,7 @@ The Vercel project exists and is connected to this repository. What is left, in 
    |---|---|
    | `ANTHROPIC_API_KEY` | Already set |
    | `AUTH_SECRET` | `openssl rand -base64 32` |
-   | `APP_PASSCODE` | The passcode you will type to sign in |
+   | `BOARD_PASSCODE` | The passcode you will type to sign in |
    | `DOC_SALT` | `openssl rand -hex 16` |
    | `REFRESH_SECRET` | `openssl rand -base64 32` |
    | `CRON_SECRET` | The same value as `REFRESH_SECRET`; Vercel's scheduler sends it when it runs the daily refresh |
@@ -55,6 +56,10 @@ The Vercel project exists and is connected to this repository. What is left, in 
 4. **Check the settings arrived.** Open `/api/health` on the deployment. Every entry under `config` should read `true`. It shows presence only, never a value.
 5. **Deployment Protection.** If Vercel Authentication is on, the deployment redirects to a Vercel sign-in page before the app's own passcode. The Montreal Weekend Board turns it off for its project for the same reason. If you keep it on, add the `VERCEL_AUTOMATION_BYPASS_SECRET` repository secret so the preview checks can reach the app.
 6. **Repository.** Create a `tests-reviewed` label (a reviewer adds it when a change to an existing test is intended), and in Claude Code accept the project's `rfr-core` plugin when prompted.
+
+## Who reads the listings
+
+Like the Montreal Weekend Board, Road Trip's listings are read by a claude.ai routine, which uses the account's routine allowance and not metered API billing. The routine's instructions are in [docs/routine-prompt.md](docs/routine-prompt.md). Each day it lists the active trips, reads the sources of the places that are due, and posts what it found to `PUT /api/trips/<id>/listings`, which checks the text the same way a read made by this server is checked. The daily cron job still builds each trip's corridor and finds its sources (the second uses the Anthropic API once per trip). Set `LISTINGS_BY=cron` to have the cron job read the listings as well, with the Anthropic API, and leave the routine off. `/api/health` reports which is set.
 
 ## Checking against the real services
 
