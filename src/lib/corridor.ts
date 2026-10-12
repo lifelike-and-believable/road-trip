@@ -12,6 +12,8 @@ import { legsOf, type Place, type Trip } from "./trip";
 
 const MIN_SPACING_KM = 50;
 const MAX_ALONG_STOPS = 20;
+/** Left for the two end zones when the spacing is widened to fit MAX_ALONG_STOPS. */
+const END_ZONE_RESERVE = 4;
 /** Nominatim's usage policy allows one request a second. */
 const NOMINATIM_GAP_MS = 1100;
 const MINUTE_MS = 60_000;
@@ -65,6 +67,36 @@ const defaultDeps: CorridorDeps = {
 };
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Distances along the route at which to name the town, nearest the start first.
+
+    The ends matter most (the traveller dwells at the destination and its
+    approach is where the day's events are), so within two spacings of each
+    end the step is halved. The dense samples are measured from each end, so
+    the first and last gap are both one step. Very long routes widen the
+    spacing to keep the number of lookups bounded. */
+export function samplePositions(totalKm: number): number[] {
+  if (!(totalKm > 0)) return [];
+  const spacing = Math.max(MIN_SPACING_KM, totalKm / (MAX_ALONG_STOPS - END_ZONE_RESERVE));
+  const step = spacing / 2;
+  const zone = spacing * 2;
+
+  const ends: number[] = [];
+  for (let k = step; k <= zone; k += step) {
+    if (k <= totalKm - step) ends.push(k);
+    if (totalKm - k >= step) ends.push(totalKm - k);
+  }
+  const middle: number[] = [];
+  for (let km = spacing; km < totalKm - zone; km += spacing) {
+    if (km > zone && ends.every((e) => Math.abs(e - km) >= step / 2)) middle.push(km);
+  }
+
+  const kept: number[] = [];
+  for (const km of [...ends, ...middle].map(round1).sort((a, b) => a - b)) {
+    if (kept.length === 0 || km - kept[kept.length - 1] >= step / 2) kept.push(km);
+  }
+  return kept;
+}
 const iso = (ms: number) => new Date(ms).toISOString();
 
 export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = defaultDeps): Promise<Corridor> {
@@ -88,13 +120,12 @@ export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = 
 
   const cum = cumulativeKm(route.line);
   const totalKm = route.distanceKm;
-  const spacing = Math.max(MIN_SPACING_KM, totalKm / MAX_ALONG_STOPS);
 
   // Towns along the road, from the first sample that names one. A town the
   // road runs through for two samples is listed once.
   type Along = { name: string; region?: string; lat: number; lon: number; km: number };
   const along: Along[] = [];
-  for (let km = spacing; km < totalKm - spacing / 2; km += spacing) {
+  for (const km of samplePositions(totalKm)) {
     const p = pointAtKm(route.line, cum, km);
     const town = await nominatim(() => deps.reverseName(p.lat, p.lon));
     if (!town) continue;

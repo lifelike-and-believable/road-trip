@@ -52,8 +52,8 @@ describe("a one-way trip", () => {
   it("keeps the first of consecutive samples that fall in the same town", async () => {
     const d = deps();
     const c = await buildCorridor(trip(), NOW, d);
-    // eight samples at 50 km spacing, two per town
-    expect(d.reverseName).toHaveBeenCalledTimes(8);
+    // twelve samples (see samplePositions), two or three per town
+    expect(d.reverseName).toHaveBeenCalledTimes(12);
     expect(c.legs[0].stops.filter((s) => s.kind === "along")).toHaveLength(4);
   });
 
@@ -141,8 +141,8 @@ describe("pacing", () => {
   it("waits 1.1 seconds before every Nominatim request after the first", async () => {
     const d = deps();
     await buildCorridor(trip({}, false), NOW, d);
-    // 2 geocodes + 8 reverse lookups = 10 requests, 9 gaps
-    expect(d.pause).toHaveBeenCalledTimes(9);
+    // 2 geocodes + 12 reverse lookups = 14 requests, 13 gaps
+    expect(d.pause).toHaveBeenCalledTimes(13);
     expect(d.pause).toHaveBeenCalledWith(1100);
   });
 });
@@ -155,7 +155,7 @@ describe("a round trip", () => {
     const c = await buildCorridor(rt(), NOW, d);
     expect(c.legs.map((l) => l.id)).toEqual(["out", "back"]);
     expect(d.driveRoute).toHaveBeenCalledTimes(1);
-    expect(d.reverseName).toHaveBeenCalledTimes(8);
+    expect(d.reverseName).toHaveBeenCalledTimes(12);
     const [out, back] = c.legs;
     expect(back.stops.map((s) => s.name)).toEqual(out.stops.map((s) => s.name).reverse());
     expect(back.stops[0]).toMatchObject({ kind: "origin", name: "Omega", km: 0 });
