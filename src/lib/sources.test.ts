@@ -108,7 +108,7 @@ describe("stopBatches", () => {
 describe("buildSources", () => {
   const fake = (replies: string[]): Ask & ReturnType<typeof vi.fn> => {
     let i = 0;
-    return vi.fn(async () => ({ text: replies[i++] ?? reply([]), searches: 3 })) as never;
+    return vi.fn(async () => ({ text: replies[i++] ?? reply([]), searches: 3, inputTokens: 1000, outputTokens: 200 })) as never;
   };
 
   it("asks once per batch, naming the stops and the trip's dates", async () => {
@@ -123,7 +123,7 @@ describe("buildSources", () => {
     expect(system).toMatch(/museum/i);
   });
 
-  it("merges the batches, de-duplicates across them, and totals the searches", async () => {
+  it("merges the batches, de-duplicates across them, and totals the searches and tokens", async () => {
     const names = ["A", "B", "C", "D", "E", "F", "G"];
     const ask = fake([
       reply([good({ near: ["A"], url: "https://one.example/e" }), good({ near: ["B"], url: "https://shared.example/e" })]),
@@ -134,13 +134,14 @@ describe("buildSources", () => {
       "https://one.example/e", "https://shared.example/e", "https://two.example/e",
     ]);
     expect(list.searches).toBe(6);
+    expect(list.usage).toEqual({ inputTokens: 2000, outputTokens: 400 });
     expect(list.stopsSearched).toEqual(names);
     expect(list).toMatchObject({ tripId: "t1", builtAt: NOW.toISOString(), model: "m" });
   });
 
   it("fails the whole build when any batch fails, so no half-covered road is stored", async () => {
     const ask = vi.fn()
-      .mockResolvedValueOnce({ text: reply([good({ near: ["A"] })]), searches: 1 })
+      .mockResolvedValueOnce({ text: reply([good({ near: ["A"] })]), searches: 1, inputTokens: 1, outputTokens: 1 })
       .mockRejectedValueOnce(new SourcesError("upstream", "overloaded"));
     await expect(
       buildSources(trip, corridor(["A", "B", "C", "D", "E", "F", "G"]), NOW, { ask, model: "m" }),

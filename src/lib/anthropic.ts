@@ -22,6 +22,8 @@ export function makeAsk(client?: Anthropic): Ask {
   return async ({ system, user }) => {
     const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: user }];
     let searches = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
     try {
       for (let pauses = 0; pauses <= MAX_PAUSES; pauses++) {
         const response = await anthropic.beta.messages.create({
@@ -34,6 +36,8 @@ export function makeAsk(client?: Anthropic): Ask {
           messages,
         });
         searches += response.content.filter((b) => b.type === "server_tool_use" && b.name === "web_search").length;
+        inputTokens += response.usage.input_tokens;
+        outputTokens += response.usage.output_tokens;
 
         if (response.stop_reason === "refusal") throw new SourcesError("refused", "the model declined this request");
         if (response.stop_reason === "max_tokens") throw new SourcesError("bad_output", "the reply was cut off");
@@ -42,7 +46,7 @@ export function makeAsk(client?: Anthropic): Ask {
           continue;
         }
         const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
-        return { text, searches };
+        return { text, searches, inputTokens, outputTokens };
       }
     } catch (e) {
       if (e instanceof SourcesError) throw e;

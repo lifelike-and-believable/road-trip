@@ -32,6 +32,8 @@ export type SourceList = {
   model: string;
   stopsSearched: string[];
   searches: number;
+  /** Tokens used finding them, across every request, for working out what a trip costs. */
+  usage: { inputTokens: number; outputTokens: number };
   sources: Source[];
 };
 
@@ -44,7 +46,8 @@ export class SourcesError extends Error {
   }
 }
 
-export type Ask = (request: { system: string; user: string }) => Promise<{ text: string; searches: number }>;
+export type AskResult = { text: string; searches: number; inputTokens: number; outputTokens: number };
+export type Ask = (request: { system: string; user: string }) => Promise<AskResult>;
 export type SourceDeps = { ask: Ask; model: string };
 
 const KINDS: SourceKind[] = ["tourism", "municipal", "venue", "festival", "ticketing", "other"];
@@ -180,6 +183,10 @@ export async function buildSources(trip: Trip, corridor: Corridor, now: Date, de
     model: deps.model,
     stopsSearched: batches.flat().map((s) => s.name),
     searches: replies.reduce((n, r) => n + r.searches, 0),
+    usage: {
+      inputTokens: replies.reduce((n, r) => n + r.inputTokens, 0),
+      outputTokens: replies.reduce((n, r) => n + r.outputTokens, 0),
+    },
     sources: [...merged.values()],
   };
 }

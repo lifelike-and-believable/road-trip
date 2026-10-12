@@ -27,7 +27,7 @@ function clientReplying(...replies: Array<{ status?: number; body: unknown }>) {
 const message = (content: unknown[], stop_reason = "end_turn") => ({
   id: "msg_1", type: "message", role: "assistant", model: "claude-opus-5-5",
   content, stop_reason, stop_sequence: null,
-  usage: { input_tokens: 1, output_tokens: 1 },
+  usage: { input_tokens: 10, output_tokens: 5 },
 });
 const text = (t: string) => ({ type: "text", text: t });
 const search = (id: string) => ({ type: "server_tool_use", id, name: "web_search", input: { query: "x" }, caller: { type: "direct" } });
@@ -54,7 +54,7 @@ describe("makeAsk", () => {
   it("sends the prompt with web search and server-side fallbacks, and returns the joined text and search count", async () => {
     const { client, sent } = clientReplying({ body: message([search("s1"), search("s2"), text('{"sources":'), text("[]}")]) });
     const out = await makeAsk(client)(ask);
-    expect(out).toEqual({ text: '{"sources":[]}', searches: 2 });
+    expect(out).toEqual({ text: '{"sources":[]}', searches: 2, inputTokens: 10, outputTokens: 5 });
 
     const { body, headers } = sent[0];
     expect(body.model).toBe("claude-opus-5-5");
@@ -77,7 +77,7 @@ describe("makeAsk", () => {
     const paused = message([search("s1")], "pause_turn");
     const { client, sent } = clientReplying({ body: paused }, { body: message([search("s2"), text("done")]) });
     const out = await makeAsk(client)(ask);
-    expect(out).toEqual({ text: "done", searches: 2 });
+    expect(out).toEqual({ text: "done", searches: 2, inputTokens: 20, outputTokens: 10 });
     expect(sent).toHaveLength(2);
     const msgs = sent[1].body.messages;
     expect(msgs).toHaveLength(2);
