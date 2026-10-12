@@ -12,6 +12,12 @@
     "rfr-core@rules-for-robots": true
   },
   "permissions": {
+    "allow": [
+      "mcp__github__get_job_logs",
+      "mcp__github__pull_request_read",
+      "mcp__github__get_file_contents",
+      "mcp__github__list_commits"
+    ],
     "deny": [
       "Read(./.env)",
       "Read(./.env.*)",
