@@ -17,11 +17,11 @@ All routes except `/api/health` and `/api/login` need the session cookie or the 
     GET    /api/session        {authed}
     GET    /api/health         which settings are present, as booleans
     GET    /api/trips          trips, soonest first, each with status and legs
-    POST   /api/trips          {from, to, start, end, roundTrip, turnaround?, tz?}
+    POST   /api/trips          {from, to, start, end, roundTrip, turnaround? | stay?, tz?}
     GET    /api/trips/<id>
     DELETE /api/trips/<id>
 
-Times carry an offset (`2026-10-16T10:00:00-04:00`). `status` is `upcoming`, `underway` or `ended`; only the first two are refreshed.
+Times carry an offset (`2026-10-16T10:00:00-04:00`). On a round trip, `turnaround` is the instant the return begins; `stay` is instead the minutes to spend at the destination after arriving (give one, not both), and the return's start is then worked out once the route is known. `status` is `upcoming`, `underway` or `ended`; only the first two are refreshed.
 
 ## Settings
 
