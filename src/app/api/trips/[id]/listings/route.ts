@@ -1,5 +1,5 @@
 import { makeAsk } from "../../../../../lib/anthropic";
-import { gate, isRefreshJob } from "../../../../../lib/auth";
+import { gate, isRoutine, readGate } from "../../../../../lib/auth";
 import type { Corridor } from "../../../../../lib/corridor";
 import { readJson, storeError } from "../../../../../lib/http";
 import { ingestListings } from "../../../../../lib/ingest";
@@ -16,7 +16,7 @@ const INGEST_LIMIT_BYTES = 512 * 1024;
 const badId = () => Response.json({ code: "bad_id", error: "not a trip id" }, { status: 400 });
 
 export async function GET(req: Request, ctx: RouteContext<"/api/trips/[id]/listings">) {
-  const denied = gate(req);
+  const denied = readGate(req);
   if (denied) return denied;
   const { id } = await ctx.params;
   if (!isTripId(id)) return badId();
@@ -81,8 +81,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/trips/[id]/list
 
 /** Listings read elsewhere, by the routine, posted place by place. Only the job's token may do this. */
 export async function PUT(req: Request, ctx: RouteContext<"/api/trips/[id]/listings">) {
-  if (!isRefreshJob(req)) {
-    return Response.json({ code: "permission_denied", error: "refresh token required" }, { status: 401 });
+  if (!isRoutine(req)) {
+    return Response.json({ code: "permission_denied", error: "routine token required" }, { status: 401 });
   }
   const { id } = await ctx.params;
   if (!isTripId(id)) return badId();

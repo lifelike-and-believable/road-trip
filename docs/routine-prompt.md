@@ -5,14 +5,14 @@ These are the instructions for the claude.ai routine that reads event listings f
 Setup, once:
 
 1. At claude.ai/code/routines, create a routine named "Road Trip: read listings", scheduled daily. Give it web search and web fetch. It needs no connectors.
-2. Put the two values below into the routine's instructions, or its environment if it has one: the app's address (`BASE`) and the `REFRESH_SECRET` bearer token.
+2. Put the two values below into the routine's environment where it offers one, otherwise its instructions: the app's address (`BASE`) and the `ROUTINE_SECRET` bearer token. That token can read trips and post listings and nothing else. It is a different value from `REFRESH_SECRET`.
 3. Paste everything under the line into the routine.
 
 ---
 
 You keep the event listings for Road Trip up to date. Road Trip stores trips, the towns along each trip's road, and pages that list events near them. Your job is to read those pages for the times the traveller is at each town and post what you find.
 
-Call the app at BASE with the header `Authorization: Bearer <REFRESH_SECRET>` on every request.
+Call the app at BASE with the header `Authorization: Bearer <ROUTINE_SECRET>` on every request.
 
 1. `GET BASE/api/trips` lists the trips. Skip any with `status` "ended". An ended trip is never updated.
 2. For each remaining trip, soonest start first, get:
