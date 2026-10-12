@@ -162,3 +162,9 @@ export function activeTrips<T extends TripInput>(trips: T[], now: Date): T[] {
 export function presentTrip(trip: Trip, now: Date) {
   return { ...trip, status: tripStatus(trip, now), legs: legsOf(trip) };
 }
+
+const TRIP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export function isTripId(id: string): boolean {
+  return TRIP_ID.test(id);
+}

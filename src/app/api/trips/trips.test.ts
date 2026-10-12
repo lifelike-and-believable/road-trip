@@ -149,6 +149,13 @@ describe("GET and DELETE /api/trips/[id]", () => {
     expect(S.docs.has(`trips/${t.id}`)).toBe(true);
   });
 
+  it("deletes a trip's corridor with it", async () => {
+    const t = await (await create(post(body()))).json();
+    S.docs.set(`corridors/${t.id}`, { tripId: t.id });
+    await remove(get(), ctx(t.id));
+    expect(S.docs.has(`corridors/${t.id}`)).toBe(false);
+  });
+
   it("deletes a trip", async () => {
     const t = await (await create(post(body()))).json();
     expect((await remove(get(), ctx(t.id))).status).toBe(200);
