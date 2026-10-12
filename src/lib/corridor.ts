@@ -103,7 +103,7 @@ export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = 
     along.push({ ...town, lat: p.lat, lon: p.lon, km });
   }
 
-  const [out, back] = legsOf(trip);
+  const [out, back] = legsOf(trip, route.durationMin);
   const driveMs = route.durationMin * MINUTE_MS;
 
   const place = (

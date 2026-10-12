@@ -181,3 +181,30 @@ describe("a round trip", () => {
     expect(back.fits).toBe(false);
   });
 });
+
+describe("a round trip with a stay", () => {
+  const withStay = (stay: number) => trip({ roundTrip: true, stay });
+
+  it("holds the destination for the stay, then starts the return from arrival plus the stay", async () => {
+    // leaves 2026-10-16 14:00, drives 300 minutes, stays 24 hours
+    const t = withStay(1440);
+    const [out, back] = (await buildCorridor(t, NOW, deps())).legs;
+    expect(out.arriveAt).toBe("2026-10-16T19:00:00.000Z");
+    expect(out.stops.at(-1)?.from).toBe("2026-10-16T19:00:00.000Z");
+    expect(out.stops.at(-1)?.until).toBe("2026-10-17T19:00:00.000Z");
+    expect(back.stops[0].from).toBe("2026-10-17T19:00:00.000Z");
+    expect(back.stops[0].until).toBe("2026-10-17T19:00:00.000Z");
+    expect(back.arriveAt).toBe("2026-10-18T00:00:00.000Z");
+    expect(back.stops.at(-1)?.until).toBe(t.end);
+    expect(out.fits).toBe(true);
+    expect(back.fits).toBe(true);
+  });
+
+  it("flags the return when the stay leaves too little time to drive back", async () => {
+    // a 50 hour stay: the return would arrive after the trip ends
+    const [out, back] = (await buildCorridor(withStay(3000), NOW, deps())).legs;
+    expect(out.fits).toBe(true);
+    expect(back.fits).toBe(false);
+    expect(back.stops.length).toBeGreaterThan(2);
+  });
+});
