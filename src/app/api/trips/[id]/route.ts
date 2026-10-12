@@ -25,6 +25,7 @@ export async function DELETE(req: Request, ctx: RouteContext<"/api/trips/[id]">)
   try {
     await deleteDoc(`trips/${id}`);
     await deleteDoc(`corridors/${id}`);
+    await deleteDoc(`sources/${id}`);
     return Response.json({ ok: true });
   } catch (e) {
     return storeError("trips/id", e);

@@ -12,6 +12,7 @@ export async function GET(req: Request) {
       APP_PASSCODE: has("APP_PASSCODE"),
       DOC_SALT: has("DOC_SALT"),
       REFRESH_SECRET: has("REFRESH_SECRET"),
+      ANTHROPIC_API_KEY: has("ANTHROPIC_API_KEY"),
       redis: has("KV_REST_API_URL") || has("UPSTASH_REDIS_REST_URL"),
     },
   });
