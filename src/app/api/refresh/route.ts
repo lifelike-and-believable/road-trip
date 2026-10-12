@@ -2,6 +2,7 @@ import { askModel, makeAsk } from "../../../lib/anthropic";
 import { isRefreshJob } from "../../../lib/auth";
 import { buildCorridor } from "../../../lib/corridor";
 import { storeError } from "../../../lib/http";
+import { listingsBy } from "../../../lib/listings-by";
 import { runAll } from "../../../lib/pipeline";
 import { buildSources, type Ask } from "../../../lib/sources";
 import { getDoc, listDocs, setDoc } from "../../../lib/store";
@@ -31,6 +32,7 @@ async function handle(req: Request) {
   const lazyAsk: Ask = async (request) => (ask ??= makeAsk())(request);
 
   const started = Date.now();
+  const by = listingsBy();
   try {
     const result = await runAll(trips, {
       getDoc,
@@ -41,8 +43,9 @@ async function handle(req: Request) {
       now: () => new Date(),
       clock: Date.now,
       deadline: started + WORK_BUDGET_MS,
+      readListings: by === "cron",
     });
-    return Response.json({ ranAt: new Date(started).toISOString(), ...result });
+    return Response.json({ ranAt: new Date(started).toISOString(), listingsBy: by, ...result });
   } catch (e) {
     console.error("[refresh]", e);
     return Response.json({ code: "refresh_error", error: "the refresh did not finish" }, { status: 500 });

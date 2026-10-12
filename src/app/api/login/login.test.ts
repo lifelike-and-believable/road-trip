@@ -12,7 +12,7 @@ const post = (b: unknown) =>
 
 beforeEach(() => {
   process.env.AUTH_SECRET = "s3cret";
-  process.env.APP_PASSCODE = "open sesame";
+  process.env.BOARD_PASSCODE = "open sesame";
 });
 
 describe("login", () => {
@@ -31,7 +31,7 @@ describe("login", () => {
   });
 
   it("answers 500 when the passcode is not configured", async () => {
-    delete process.env.APP_PASSCODE;
+    delete process.env.BOARD_PASSCODE;
     expect((await POST(post({ passcode: "" }))).status).toBe(500);
   });
 
