@@ -19,7 +19,8 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   other: "Other",
 };
 
-export type Filters = { categories: Set<Category>; freeOnly: boolean; starredOnly: boolean };
+/** `stop` limits the board to what is near one town, chosen on the map or from the row of stops. */
+export type Filters = { categories: Set<Category>; freeOnly: boolean; starredOnly: boolean; stop?: string };
 
 export function filterDays(days: Day[], filters: Filters, starred: Set<string>): Day[] {
   return days
@@ -29,7 +30,8 @@ export function filterDays(days: Day[], filters: Filters, starred: Set<string>):
         (o) =>
           (filters.categories.size === 0 || filters.categories.has(o.listing.category)) &&
           (!filters.freeOnly || o.listing.cost === "free") &&
-          (!filters.starredOnly || starred.has(o.id)),
+          (!filters.starredOnly || starred.has(o.id)) &&
+          (!filters.stop || o.stop === filters.stop),
       ),
     }))
     .filter((d) => d.options.length > 0);

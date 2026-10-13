@@ -861,3 +861,65 @@ h3 {
 .toast[data-on="true"] {
   opacity: 1;
 }
+
+/* The map. Leaflet's own stylesheet loads after this one, so these rules are one class more specific. */
+.mapblock {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 26px;
+}
+.routemap {
+  position: relative;
+  z-index: 0; /* a stacking context of its own, so Leaflet's panes stay under the sticky filter bar */
+  height: 320px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  font-family: var(--sans);
+}
+@media (max-width: 560px) {
+  .routemap {
+    height: 260px;
+  }
+}
+.routemap:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.routemap .route-line {
+  stroke: var(--accent);
+}
+.routemap .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--ink-2);
+}
+.routemap .leaflet-control-attribution a {
+  color: var(--accent-2);
+}
+.routemap .leaflet-bar a {
+  background: var(--surface);
+  color: var(--ink);
+  border-bottom-color: var(--line);
+}
+.routemap .leaflet-bar a:hover {
+  background: var(--surface-2);
+}
+.routemap .leaflet-tooltip {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+  font: 600 12px/1.4 var(--sans);
+}
+.routemap .leaflet-tooltip-top::before {
+  border-top-color: var(--ink);
+}
+@media (prefers-color-scheme: dark) {
+  .routemap .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+  }
+}
+.stops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
