@@ -24,7 +24,13 @@ const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 const colour = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const label = (s: StopSummary) => `${s.name}${s.region ? `, ${s.region}` : ""} · ${s.count === 1 ? "1 listing" : `${s.count} listings`}`;
+const label = (s: StopSummary) => text(`${s.name}${s.region ? `, ${s.region}` : ""} · ${s.count === 1 ? "1 listing" : `${s.count} listings`}`);
+// Leaflet writes a string tooltip as HTML, and these names come from web pages and OpenStreetMap, so it gets an element holding text.
+function text(s: string): HTMLElement {
+  const el = document.createElement("span");
+  el.textContent = s;
+  return el;
+}
 
 /** The road as a line with a pin for each town. The row of stops under it does the same from the keyboard; this is the picture.
     It loads only in the browser, since Leaflet reads the window when it loads. */
@@ -100,7 +106,7 @@ export default function RouteMap({ corridor, stops, selected, onSelect, places, 
         fillColor: colour(variable),
         fillOpacity: 1,
       }).addTo(group);
-      pin.bindTooltip(p.title, { direction: "top" });
+      pin.bindTooltip(text(p.title), { direction: "top" });
       pin.on("click", () => latest.current.onPlace(p.id));
       placed.set(p.id, pin);
     }

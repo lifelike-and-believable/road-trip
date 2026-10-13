@@ -61,7 +61,7 @@ npm run verify                     # typecheck, lint, unit tests, production bui
 
 Store keys (Upstash Redis over REST): `trips/<id>`, `corridors/<id>`, `sources/<id>`, `listings/<id>`, `plans/<id>`, `prep/<id>`. Deleting a trip removes all six.
 
-Tokens: the passcode cookie for people; `REFRESH_SECRET` and `CRON_SECRET` (same value) for the refresh; `ROUTINE_SECRET` for the routine, which can read and post listings and nothing else; `ROUTINE_FIRE_TOKEN` is the routine's own trigger token and reaches only that routine.
+Tokens: the passcode cookie for people; `REFRESH_SECRET` and `CRON_SECRET` (same value) for the refresh, which cannot make or delete a trip or change a plan; `ROUTINE_SECRET` for the routine, which can read and post listings and nothing else; `ROUTINE_FIRE_TOKEN` is the routine's own trigger token and reaches only that routine.
 
 ## Not yet checked, and known risks
 

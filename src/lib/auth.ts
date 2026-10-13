@@ -86,8 +86,16 @@ export function readGate(req: Request): Response | null {
   return isRoutine(req) ? null : gate(req);
 }
 
+const notSignedIn = () => Response.json({ code: "permission_denied", error: "not signed in" }, { status: 401 });
+
 /** A 401 response when the request may not proceed, otherwise null. */
 export function gate(req: Request): Response | null {
   if (isAuthed(req) || isRefreshJob(req)) return null;
-  return Response.json({ code: "permission_denied", error: "not signed in" }, { status: 401 });
+  return notSignedIn();
+}
+
+/* Making, deleting and planning a trip belong to the traveller. The job's tokens live in
+   the scheduler and in shells, so one that leaks must not be able to wipe or rewrite trips. */
+export function personGate(req: Request): Response | null {
+  return isAuthed(req) ? null : notSignedIn();
 }

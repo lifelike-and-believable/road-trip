@@ -76,6 +76,33 @@ test.describe('listing pins on the map', () => {
     await expect(pins(page)).toHaveCount(1);
   });
 
+  // Titles come from web pages and town names from OpenStreetMap, so a tooltip shows them as text, never as markup.
+  test('shows a title or town name that looks like markup as plain text', async ({ page }) => {
+    const bait = '<img src=x onerror="window.__pwned=1">';
+    await page.route('https://tile.openstreetmap.org/**', (route) => route.fulfill({ body: PIXEL, contentType: 'image/png' }));
+    const baited = {
+      ...corridor,
+      legs: [{ ...corridor.legs[0], stops: [{ ...corridor.legs[0].stops[0], region: bait }, corridor.legs[0].stops[1]] }],
+    };
+    const baitedListings = {
+      ...listings,
+      stops: { ...listings.stops, Champlain: { refreshedAt: utc(10), listings: [museum('aaaaaaaaaaa1', 'Champlain', `Maple ${bait}`, { lat: 45.01, lon: -73.4 })] } },
+    };
+    await page.route(`**/api/trips/${ID}/board`, (route) =>
+      route.fulfill({ json: { trip, corridor: baited, sources: { count: 3 }, listings: baitedListings, plan: { tripId: ID, updatedAt: null, picks: [], starred: [] } } }),
+    );
+    await page.goto(`/trips/${ID}`);
+    await expect(pins(page)).toHaveCount(3);
+
+    await card(page, 'Maple').getByRole('button', { name: /on the map/ }).click();
+    await pins(page).first().dispatchEvent('mouseover');
+    const tips = page.locator('.leaflet-tooltip');
+    await expect(tips.filter({ hasText: `Maple ${bait}` })).toBeVisible();
+    await expect(tips.filter({ hasText: `Champlain, ${bait}` })).toBeVisible();
+    await expect(tips.locator('img')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
+  });
+
   test('has no accessibility violations with the pins and buttons on the page', async ({ page }) => {
     await stubBoard(page);
     await page.goto(`/trips/${ID}`);
