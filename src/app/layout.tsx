@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, IBM_Plex_Mono, Newsreader } from "next/font/google";
+import { ServiceWorker } from "../components/service-worker";
 import "./globals.css";
 
 // The Montreal Weekend Board's three faces: Newsreader for text, Archivo (at a chosen width) for
@@ -14,6 +15,8 @@ const newsreaderItalic = Newsreader({ variable: "--font-newsreader-italic", subs
 export const metadata: Metadata = {
   title: "Road Trip",
   description: "What is on along the road, for the times you will be passing through.",
+  appleWebApp: { capable: true, title: "Road Trip", statusBarStyle: "black-translucent" },
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
 };
 
 // No maximum-scale: pinch-zoom stays available.
@@ -27,7 +30,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-CA" className={`${archivo.variable} ${plexMono.variable} ${newsreader.variable} ${newsreaderItalic.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }

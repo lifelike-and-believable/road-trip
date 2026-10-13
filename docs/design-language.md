@@ -117,6 +117,7 @@ These are deliberate. Each has a reason.
 | Gate | Built |
 | Hide, "Bring back", "Hidden" chip | Built |
 | Copy plan, Clear, toast | Built |
+| Installable app: manifest, icon, offline page, safe areas, theme colour (the panel) | Built; Montreal has no service worker, so the offline page is new |
 | Map of the route with a row of stops under it | Built (new; Montreal has no map) |
 | Plan as a bottom drawer | Built |
 | Days side by side in columns on wide screens | Built |
