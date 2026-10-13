@@ -129,6 +129,7 @@ test.describe('the plan text', () => {
     expect(text).toContain('https://events.example/aaaaaaaaaaa2');
     await page.getByRole('button', { name: 'Clear' }).click();
     expect(saved.at(-1)).toMatchObject({ picks: [] });
+    await page.getByRole('button', { name: 'Show itinerary' }).click();
     await expect(page.getByText('Add one or two stops from the list')).toBeVisible();
   });
 });
