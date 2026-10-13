@@ -20,11 +20,12 @@ export function Gate({ onSignedIn }: { onSignedIn: () => void }) {
   }
 
   return (
-    <form className="card stack" onSubmit={submit} aria-labelledby="gate-title">
-      <h2 id="gate-title">Sign in</h2>
+    <form className="gate" onSubmit={submit} aria-labelledby="gate-title">
+      <h2 id="gate-title">Road Trip</h2>
+      <p>Enter the passcode to load your trips and picks. This device stays signed in.</p>
       <div className="field">
         <label htmlFor="passcode">Passcode</label>
-        <input id="passcode" type="password" autoComplete="current-password" required value={passcode} onChange={(e) => setPasscode(e.target.value)} />
+        <input id="passcode" type="password" autoComplete="current-password" required autoFocus value={passcode} onChange={(e) => setPasscode(e.target.value)} />
       </div>
       {error && (
         <p className="alert" role="alert">
@@ -33,7 +34,7 @@ export function Gate({ onSignedIn }: { onSignedIn: () => void }) {
       )}
       <div>
         <button className="btn" type="submit" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? "Unlocking…" : "Unlock"}
         </button>
       </div>
     </form>

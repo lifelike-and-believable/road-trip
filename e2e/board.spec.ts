@@ -65,7 +65,7 @@ test.describe('the home page', () => {
     await page.route('**/api/trips', (route) => route.fulfill({ json: { trips: [trip('upcoming')] } }));
     await page.goto('/');
     await page.getByLabel('Passcode').fill('open sesame');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Unlock' }).click();
     await expect(page.getByRole('link', { name: 'Montréal to Plattsburgh' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'New trip' })).toBeVisible();
   });
@@ -75,7 +75,7 @@ test.describe('the home page', () => {
     await page.route('**/api/login', (route) => route.fulfill({ status: 401, json: { code: 'bad_passcode', error: 'no' } }));
     await page.goto('/');
     await page.getByLabel('Passcode').fill('wrong');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Unlock' }).click();
     await expect(page.getByRole('alert').filter({ hasText: 'passcode' })).toHaveText("That passcode doesn't match.");
   });
 });
@@ -85,7 +85,7 @@ test.describe('the board', () => {
     await stubBoard(page);
     await page.goto(`/trips/${ID}`);
     await expect(page.getByRole('heading', { name: 'Montréal to Plattsburgh' })).toBeVisible();
-    await expect(page.locator('summary', { hasText: 'Saturday 17 October' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Saturday 17 October/ })).toBeVisible();
     const titles = await page.locator('article h3').allTextContents();
     // by start: the park opens at 8:00, the museum at 9:00
     expect(titles).toEqual(['Riverside Park', 'Maple Museum', 'Farm market concert', 'Lakeside play']);
@@ -97,8 +97,8 @@ test.describe('the board', () => {
   test('builds the plan in time order with the gap and the estimated drive between picks, and saves it', async ({ page }) => {
     const saved = await stubBoard(page);
     await page.goto(`/trips/${ID}`);
-    await page.locator('article', { hasText: 'Lakeside play' }).getByRole('button', { name: 'Add to plan' }).click();
-    await page.locator('article', { hasText: 'Farm market concert' }).getByRole('button', { name: 'Add to plan' }).click();
+    await page.locator('article', { hasText: 'Lakeside play' }).getByRole('button', { name: /^Add/ }).click();
+    await page.locator('article', { hasText: 'Farm market concert' }).getByRole('button', { name: /^Add/ }).click();
     const plan = page.getByRole('region', { name: 'Your plan' });
     await expect(plan.locator('.item strong')).toHaveText(['Farm market concert', 'Lakeside play']);
     // 11:00 to 12:30 is 90 minutes; Champlain to Plattsburgh is 50 km, about an hour
@@ -118,8 +118,8 @@ test.describe('the board', () => {
     };
     await stubBoard(page, { data: { listings: tight } });
     await page.goto(`/trips/${ID}`);
-    await page.locator('article', { hasText: 'Early show' }).getByRole('button', { name: 'Add to plan' }).click();
-    await page.locator('article', { hasText: 'Late show' }).getByRole('button', { name: 'Add to plan' }).click();
+    await page.locator('article', { hasText: 'Early show' }).getByRole('button', { name: /^Add/ }).click();
+    await page.locator('article', { hasText: 'Late show' }).getByRole('button', { name: /^Add/ }).click();
     await expect(page.getByRole('region', { name: 'Your plan' }).locator('.gap.warn')).toHaveText(
       '30 min between them, but the drive is about 1 h',
     );
@@ -128,8 +128,8 @@ test.describe('the board', () => {
   test('says so when a flexible pick cannot be fitted around the others', async ({ page }) => {
     await stubBoard(page);
     await page.goto(`/trips/${ID}`);
-    await page.locator('article', { hasText: 'Farm market concert' }).getByRole('button', { name: 'Add to plan' }).click();
-    await page.locator('article', { hasText: 'Maple Museum' }).getByRole('button', { name: 'Add to plan' }).click();
+    await page.locator('article', { hasText: 'Farm market concert' }).getByRole('button', { name: /^Add/ }).click();
+    await page.locator('article', { hasText: 'Maple Museum' }).getByRole('button', { name: /^Add/ }).click();
     const plan = page.getByRole('region', { name: 'Your plan' });
     await expect(plan).toContainText('It cannot be fitted within its opening hours alongside your other picks.');
     await expect(plan.locator('.gap')).toHaveCount(0);
@@ -164,7 +164,7 @@ test.describe('the board', () => {
     await stubBoard(page, { status: 'ended' });
     await page.goto(`/trips/${ID}`);
     await expect(page.getByText('This trip is over')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add to plan' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Add/ })).toHaveCount(0);
   });
 
   test('says what is still to come when the route, sources or listings are missing', async ({ page }) => {
