@@ -136,6 +136,29 @@ export function groupDay(options: Option[], tz?: string): DayGroups {
   return { bands, open: sorted.filter((o) => o.kind === "flexible") };
 }
 
+export type StopSummary = { name: string; region?: string; lat: number; lon: number; count: number; picked: boolean };
+
+/** The towns along the road, once each in route order, with how many listings are near each and whether a pick is. */
+export function stopSummaries(
+  corridor: Corridor,
+  days: Day[],
+  picks: Pick[],
+  byId: Map<string, { stop: string }>,
+): StopSummary[] {
+  const listed = new Map<string, Set<string>>();
+  for (const d of days) for (const o of d.options) listed.set(o.stop, (listed.get(o.stop) ?? new Set()).add(o.id));
+  const picked = new Set(picks.map((p) => byId.get(p.id)?.stop).filter((s): s is string => s !== undefined));
+
+  const out = new Map<string, StopSummary>();
+  for (const leg of corridor.legs) {
+    for (const s of leg.stops) {
+      if (out.has(s.name)) continue;
+      out.set(s.name, { name: s.name, region: s.region, lat: s.lat, lon: s.lon, count: listed.get(s.name)?.size ?? 0, picked: picked.has(s.name) });
+    }
+  }
+  return [...out.values()];
+}
+
 export type Placement = "fixed" | "chosen" | "auto" | "unplaceable";
 
 export type ItineraryItem = {

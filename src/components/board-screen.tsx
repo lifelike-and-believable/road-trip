@@ -1,9 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, type Pick } from "../lib/board";
+import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, stopSummaries, type Pick } from "../lib/board";
 import type { Category, Listing } from "../lib/listing";
 import { CATEGORY_LABELS, categoriesIn, filterDays, withoutHidden, type Filters } from "../lib/filters";
 import { dateRangeLabel, dayLabel, dayParts } from "../lib/format";
@@ -13,6 +14,16 @@ import { CATEGORY_COLOR } from "./categories";
 import { ItineraryView } from "./itinerary-view";
 import { OptionCard } from "./option-card";
 import { useToast } from "./toast";
+
+// Leaflet reads the window when it loads, so the map is left out of the server's render and loaded on its own.
+const RouteMap = dynamic(() => import("./route-map"), {
+  ssr: false,
+  loading: () => (
+    <p className="muted small" role="status">
+      Loading the map…
+    </p>
+  ),
+});
 
 type Load = { kind: "loading" } | { kind: "error"; status: number; message: string } | { kind: "ready"; data: BoardData };
 type Plan = { picks: Pick[]; starred: string[]; hidden: string[] };
@@ -72,6 +83,10 @@ export function BoardScreen() {
     for (const [stop, entry] of Object.entries(data?.listings?.stops ?? {})) for (const listing of entry.listings) m.set(listing.id, { listing, stop });
     return m;
   }, [data]);
+  const stops = useMemo(
+    () => (data?.corridor ? stopSummaries(data.corridor, visibleDays, plan.picks, byId) : []),
+    [data, visibleDays, plan.picks, byId],
+  );
   const itinerary = useMemo(
     () => (data?.corridor ? buildItinerary(plan.picks, byId, data.corridor) : { items: [], gaps: [], missing: [] }),
     [plan.picks, byId, data],
@@ -153,7 +168,8 @@ export function BoardScreen() {
   const today = localDay(new Date().toISOString(), tz);
   const total = visibleDays.reduce((n, d) => n + d.options.length, 0);
   const count = shown.reduce((n, d) => n + d.options.length, 0);
-  const filtering = filters.categories.size > 0 || filters.freeOnly || filters.starredOnly;
+  const filtering = filters.categories.size > 0 || filters.freeOnly || filters.starredOnly || filters.stop !== undefined;
+  const toggleStop = (name: string) => setFilters((f) => ({ ...f, stop: f.stop === name ? undefined : name }));
   const toggleCategory = (c: Category) =>
     setFilters((f) => {
       const next = new Set(f.categories);
@@ -276,6 +292,21 @@ export function BoardScreen() {
               <h2 id="options-title" className="sr-only">
                 What is on along the road
               </h2>
+              {(stops.length > 0 || corridor.line) && (
+                <div className="mapblock">
+                  <RouteMap corridor={corridor} stops={stops} selected={filters.stop ?? null} onSelect={toggleStop} />
+                  {stops.length > 0 && (
+                    <div className="stops" role="group" aria-label="Stops along the road">
+                      {stops.map((s) => (
+                        <button key={s.name} type="button" className="chip" aria-pressed={filters.stop === s.name} onClick={() => toggleStop(s.name)}>
+                          {s.name} <span className="bct">{s.count}</span>
+                          {s.picked && <span className="sr-only"> (has a pick on your plan)</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {total === 0 && sources && listings && <p className="note">Nothing found yet for the times you will be at each place.</p>}
               {total > 0 && count === 0 && <p className="note">Nothing matches these filters.</p>}
               {shown.map((d) => {

@@ -6,7 +6,7 @@
    distance. It has no traffic, no breaks and no detours, so the corridor
    says it is an estimate. */
 
-import { cumulativeKm, pointAtKm } from "./geo";
+import { cumulativeKm, pointAtKm, simplifyLine, type LonLat } from "./geo";
 import { driveRoute, geocode, reverseName } from "./osm";
 import { legsOf, type Place, type Trip } from "./trip";
 
@@ -17,6 +17,8 @@ const END_ZONE_RESERVE = 4;
 /** Nominatim's usage policy allows one request a second. */
 const NOMINATIM_GAP_MS = 1100;
 const MINUTE_MS = 60_000;
+/** The road kept for the map: enough to follow the bends at the zoom of a whole trip, small enough to store and send. */
+export const MAX_LINE_POINTS = 500;
 
 export type Located = { label: string; lat: number; lon: number };
 
@@ -48,6 +50,8 @@ export type Corridor = {
   from: Located;
   to: Located;
   sources: { geocoding: string; routing: string; timing: string };
+  /** The road, start to end, for the map. A corridor built before the map existed has none. */
+  line?: LonLat[];
   legs: LegCorridor[];
 };
 
@@ -156,11 +160,15 @@ export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = 
     legs.push({ id: "back", ...base, ...place(back, reversed) });
   }
 
+  const roundTo5 = (n: number) => Math.round(n * 1e5) / 1e5;
+  const line = simplifyLine(route.line, MAX_LINE_POINTS).map(([lon, lat]): LonLat => [roundTo5(lon), roundTo5(lat)]);
+
   return {
     tripId: trip.id,
     builtAt: now.toISOString(),
     from,
     to,
+    line,
     sources: {
       geocoding: "OpenStreetMap Nominatim",
       routing: "OSRM driving route (OpenStreetMap data)",
