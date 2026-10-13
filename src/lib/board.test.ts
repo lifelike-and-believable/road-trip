@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardDays, buildItinerary, localDay, localTime, SLACK_MIN, type Pick } from "./board";
+import { boardDays, buildItinerary, instantIn, localDay, localTime, SLACK_MIN, type Pick } from "./board";
 import type { Corridor, Stop } from "./corridor";
 import { PASS_SLACK_MIN, type Listing } from "./listing";
 import type { ListingsDoc } from "./refresh";
@@ -202,11 +202,40 @@ describe("buildItinerary: flexible picks", () => {
     expect(it.items[0]).toMatchObject({ placed: "chosen", startAt: utc(23), warning: "outside-hours" });
   });
 
+  // C is open both days the traveller is there; a pick made from one day's card stays on that day.
+  const twoDays = flexible("twodays", "C", [[13, 21], [37, 45]], 60);
+
+  it("places a pick made from a day's card on that day, and says which day it is", () => {
+    const sat = buildItinerary([{ id: "twodays", day: "2026-10-18" }], index(twoDays), corridor, TZ);
+    expect(sat.items[0]).toMatchObject({ placed: "auto", startAt: utc(37), day: "2026-10-18" });
+    const any = buildItinerary([pick("twodays")], index(twoDays), corridor, TZ);
+    expect(any.items[0]).toMatchObject({ placed: "auto", startAt: utc(13), day: "2026-10-17" });
+  });
+
+  it("cannot place a pick on a day the place is not open, and keeps the day it was picked for", () => {
+    const it = buildItinerary([{ id: "museum", day: "2026-10-19" }], index(museum), corridor, TZ);
+    expect(it.items[0]).toMatchObject({ placed: "unplaceable", startAt: null, day: "2026-10-19" });
+  });
+
   it("puts a flexible pick that cannot be fitted at the end, unplaced and with no gap", () => {
     const closed = flexible("closed", "B", [[9, 10]], 90); // closes before it can be reached
     const it = buildItinerary([pick("closed"), pick("anchor")], index(anchor, closed), corridor);
     expect(it.items.map((i) => i.id)).toEqual(["anchor", "closed"]);
     expect(it.items[1]).toMatchObject({ placed: "unplaceable", startAt: null, endAt: null });
     expect(it.gaps).toEqual([]);
+  });
+});
+
+describe("instantIn", () => {
+  it("turns a clock time on a day in the trip's zone into an instant", () => {
+    expect(instantIn("2026-10-18", "14:30", TZ)).toBe("2026-10-18T18:30:00.000Z");
+    expect(instantIn("2026-12-01", "09:00", TZ)).toBe("2026-12-01T14:00:00.000Z");
+    expect(instantIn("2026-10-18", "14:30")).toBe("2026-10-18T14:30:00.000Z");
+  });
+
+  it("is null for a time the clocks skip, or one that is not a time", () => {
+    expect(instantIn("2026-03-08", "02:30", TZ)).toBeNull();
+    expect(instantIn("2026-10-18", "25:00", TZ)).toBeNull();
+    expect(instantIn("2026-10-18", "", TZ)).toBeNull();
   });
 });

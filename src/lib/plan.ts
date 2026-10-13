@@ -10,6 +10,8 @@ import type { Pick } from "./board";
 import { parseInstant } from "./trip";
 
 /** `hidden` is left out when nothing is hidden, so a plan made before hiding existed reads the same. */
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
 export type PlanDoc = { tripId: string; updatedAt: string; picks: Pick[]; starred: string[]; hidden?: string[] };
 
 export type PlanParse = { ok: true; picks: Pick[]; starred: string[]; hidden?: string[] } | { ok: false; errors: string[] };
@@ -43,10 +45,10 @@ export function parsePlan(raw: unknown): PlanParse {
   const pickIds = new Set<string>();
   rawPicks.forEach((p, i) => {
     if (typeof p !== "object" || p === null || Array.isArray(p)) {
-      errors.push(`picks[${i}] must be {id, at?}`);
+      errors.push(`picks[${i}] must be {id, at?, day?}`);
       return;
     }
-    const { id, at } = p as { id?: unknown; at?: unknown };
+    const { id, at, day } = p as { id?: unknown; at?: unknown; day?: unknown };
     if (typeof id !== "string" || !LISTING_ID.test(id)) {
       errors.push(`picks[${i}].id must be a listing id`);
       return;
@@ -60,9 +62,14 @@ export function parsePlan(raw: unknown): PlanParse {
       }
       chosen = new Date(ms).toISOString();
     }
+    // The trip-local day of the card a flexible pick was made from, which keeps it on that day.
+    if (day !== undefined && (typeof day !== "string" || !DAY.test(day) || parseInstant(`${day}T00:00Z`) === null)) {
+      errors.push(`picks[${i}].day must be a date such as 2026-10-17`);
+      return;
+    }
     if (pickIds.has(id)) return;
     pickIds.add(id);
-    picks.push(chosen ? { id, at: chosen } : { id });
+    picks.push({ id, ...(chosen ? { at: chosen } : {}), ...(day !== undefined ? { day } : {}) });
   });
 
   const starred: string[] = [];

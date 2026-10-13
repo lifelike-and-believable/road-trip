@@ -11,6 +11,14 @@ describe("parsePlan", () => {
     expect(r).toEqual({ ok: true, picks: [{ id: A }, { id: B, at: "2026-10-17T18:00:00.000Z" }], starred: [C] });
   });
 
+  it("keeps the day a flexible pick was made for, and refuses one that is not a date", () => {
+    const ok = parsePlan({ picks: [{ id: A, day: "2026-10-18" }], starred: [] });
+    expect(ok).toEqual({ ok: true, picks: [{ id: A, day: "2026-10-18" }], starred: [] });
+    for (const day of ["18 October", "2026-02-30", 20261018]) {
+      expect(parsePlan({ picks: [{ id: A, day }], starred: [] }).ok).toBe(false);
+    }
+  });
+
   it("accepts an empty plan, which is how a pick is taken back", () => {
     expect(parsePlan({ picks: [], starred: [] })).toEqual({ ok: true, picks: [], starred: [] });
   });

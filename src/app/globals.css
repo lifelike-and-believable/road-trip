@@ -847,6 +847,25 @@ h3 {
   font: 500 11.5px var(--mono);
   color: var(--brick);
 }
+/* Setting the start of a flexible pick. */
+.ssetter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.stimefield {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--ink-3);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 13px var(--mono);
+}
 .xbtn {
   width: 44px;
   height: 44px;

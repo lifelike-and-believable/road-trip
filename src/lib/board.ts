@@ -19,7 +19,13 @@ export const SLACK_MIN = 180;
 
 const MINUTE_MS = 60_000;
 
-export type Pick = { id: string; /** When a flexible pick is to start, if the traveller chose a time. */ at?: string };
+export type Pick = {
+  id: string;
+  /** When a flexible pick is to start, if the traveller chose a time. */
+  at?: string;
+  /** The trip-local day of the card a flexible pick was made from; it is placed only within that day's hours. */
+  day?: string;
+};
 
 export function localDay(iso: string, tz?: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(
@@ -120,6 +126,31 @@ export function boardDays(corridor: Corridor, listings: ListingsDoc | null, tz?:
     }));
 }
 
+/** "09:00" for a time field: the 24-hour clock reading of an instant in the trip's zone. */
+export function clockTime(iso: string, tz?: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+}
+
+/** A clock time ("14:30") on a trip-local day, as an instant. Null for a time the clocks skip that day, or one that is not a time. */
+export function instantIn(day: string, time: string, tz?: string): string | null {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  const t = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!d || !t || Number(t[1]) > 23 || Number(t[2]) > 59) return null;
+  const wall = Date.UTC(Number(d[1]), Number(d[2]) - 1, Number(d[3]), Number(t[1]), Number(t[2]));
+  // The zone's offset at a moment, from how that moment reads on its clock.
+  const offset = (ms: number) => {
+    const p = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz ?? "UTC", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(new Date(ms));
+    const n = (type: string) => Number(p.find((x) => x.type === type)?.value);
+    return Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute")) - ms;
+  };
+  // Twice, so a guess on the far side of a clock change settles on the offset in force at the result.
+  let ms = wall - offset(wall);
+  ms = wall - offset(ms);
+  return localDay(new Date(ms).toISOString(), tz) === day && offset(ms) === wall - ms ? new Date(ms).toISOString() : null;
+}
+
 export type Band = "morning" | "afternoon" | "evening" | "late";
 
 /** Morning to 11:59, afternoon from noon, evening from 5 p.m., late from 8:30 p.m., as on the Montreal board. */
@@ -203,6 +234,8 @@ export type ItineraryItem = {
   endAt: string | null;
   endKnown: boolean;
   warning?: "outside-hours";
+  /** The trip-local day a flexible pick is on, or was picked for when it cannot be placed. */
+  day?: string;
 };
 
 export type GapState = "ok" | "tight" | "overlap" | "back-to-back";
@@ -261,6 +294,7 @@ type Slot = {
   start: number;
   end: number | null;
   warning?: "outside-hours";
+  pickDay?: string;
 };
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -269,6 +303,7 @@ export function buildItinerary(
   picks: Pick[],
   byId: Map<string, { listing: Listing; stop: string }>,
   corridor: Corridor,
+  tz?: string,
 ): Itinerary {
   const missing: string[] = [];
   const seen = new Set<string>();
@@ -312,11 +347,13 @@ export function buildItinerary(
   toPlace.sort((a, b) => openingOf(a.listing) - openingOf(b.listing) || a.listing.id.localeCompare(b.listing.id));
 
   const slack = SLACK_MIN * MINUTE_MS;
-  for (const { listing, stop } of toPlace) {
+  for (const { pick, listing, stop } of toPlace) {
     if (listing.schedule.kind !== "flexible") continue;
     const length = (listing.schedule.typicalMin ?? 0) * MINUTE_MS;
     const visits = visitsOf(corridor, stop);
-    const hours = [...listing.schedule.hours].sort((a, b) => Date.parse(a.opens) - Date.parse(b.opens));
+    const hours = listing.schedule.hours
+      .filter((h) => !pick.day || localDay(h.opens, tz) === pick.day)
+      .sort((a, b) => Date.parse(a.opens) - Date.parse(b.opens));
     let start: number | null = null;
 
     search: for (const h of hours) {
@@ -353,6 +390,7 @@ export function buildItinerary(
     const slot: Slot = {
       id: listing.id, title: listing.title, stop, kind: "flexible", placed: start === null ? "unplaceable" : "auto",
       start: start ?? 0, end: start !== null && listing.schedule.typicalMin ? start + length : null,
+      ...(pick.day ? { pickDay: pick.day } : {}),
     };
     (start === null ? unplaceable : placed).push(slot);
   }
@@ -365,6 +403,7 @@ export function buildItinerary(
     endAt: s.placed === "unplaceable" || s.end === null ? null : iso(s.end),
     endKnown: s.placed !== "unplaceable" && s.end !== null,
     ...(s.warning ? { warning: s.warning } : {}),
+    ...(s.kind === "flexible" ? (s.placed === "unplaceable" ? (s.pickDay ? { day: s.pickDay } : {}) : { day: localDay(iso(s.start), tz) }) : {}),
   });
 
   const gaps: Gap[] = [];
