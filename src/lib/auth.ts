@@ -72,6 +72,20 @@ export function isRefreshJob(req: Request): boolean {
   return [process.env.REFRESH_SECRET, process.env.CRON_SECRET].some((want) => !!want && safeEqual(got, want));
 }
 
+/* The listings routine has a token of its own, so a page it reads cannot turn it into
+   more than it is for: it may read trips, corridors, sources and listings, and post
+   listings. It is not the refresh or cron token, and those do not post listings. */
+export function isRoutine(req: Request): boolean {
+  const want = process.env.ROUTINE_SECRET;
+  const got = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  return !!want && !!got && safeEqual(got, want);
+}
+
+/** For the routes the routine reads: as `gate`, and the routine's token too. */
+export function readGate(req: Request): Response | null {
+  return isRoutine(req) ? null : gate(req);
+}
+
 /** A 401 response when the request may not proceed, otherwise null. */
 export function gate(req: Request): Response | null {
   if (isAuthed(req) || isRefreshJob(req)) return null;

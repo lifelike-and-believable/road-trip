@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { gate } from "../../../lib/auth";
+import { gate, readGate } from "../../../lib/auth";
 import { readJson, storeError } from "../../../lib/http";
 import { listDocs, setDoc } from "../../../lib/store";
 import { parseTripInput, presentTrip, type Trip } from "../../../lib/trip";
 
 export async function GET(req: Request) {
-  const denied = gate(req);
+  const denied = readGate(req);
   if (denied) return denied;
   try {
     const now = new Date();

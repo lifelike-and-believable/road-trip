@@ -40,7 +40,7 @@ const listing = (title: string) => ({
   schedule: { kind: "fixed", start: at(31), durationMin: 60 },
 });
 
-const job = { authorization: "Bearer job-secret" };
+const job = { authorization: "Bearer routine-secret" };
 const put = (body: unknown, headers: Record<string, string> = job) =>
   new Request(`https://x.test/api/trips/${ID}/listings`, {
     method: "PUT", headers, body: typeof body === "string" ? body : JSON.stringify(body),
@@ -55,11 +55,13 @@ beforeEach(() => {
   S.docs.set(`corridors/${ID}`, corridor);
   process.env.AUTH_SECRET = "s3cret";
   process.env.REFRESH_SECRET = "job-secret";
+  process.env.ROUTINE_SECRET = "routine-secret";
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 describe("PUT /api/trips/[id]/listings", () => {
-  it("takes the job's token only, not a signed-in browser", async () => {
+  it("takes the routine's token only, not a signed-in browser or the refresh job's token", async () => {
+    expect((await PUT(put(payload, { authorization: "Bearer job-secret" }), ctx())).status).toBe(401);
     expect((await PUT(put(payload, {}), ctx())).status).toBe(401);
     expect((await PUT(put(payload, { cookie: issueCookie().split(";")[0] }), ctx())).status).toBe(401);
     expect((await PUT(put(payload, { authorization: "Bearer wrong" }), ctx())).status).toBe(401);

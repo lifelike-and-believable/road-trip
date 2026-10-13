@@ -1,4 +1,4 @@
-import { gate } from "../../../../../lib/auth";
+import { gate, readGate } from "../../../../../lib/auth";
 import { buildCorridor, type Corridor } from "../../../../../lib/corridor";
 import { storeError } from "../../../../../lib/http";
 import { OsmError } from "../../../../../lib/osm";
@@ -11,7 +11,7 @@ export const maxDuration = 60;
 const badId = () => Response.json({ code: "bad_id", error: "not a trip id" }, { status: 400 });
 
 export async function GET(req: Request, ctx: RouteContext<"/api/trips/[id]/corridor">) {
-  const denied = gate(req);
+  const denied = readGate(req);
   if (denied) return denied;
   const { id } = await ctx.params;
   if (!isTripId(id)) return badId();
