@@ -8,6 +8,7 @@ import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, 
 import type { Category, Listing } from "../lib/listing";
 import { CATEGORY_LABELS, categoriesIn, filterDays, withoutHidden, type Filters } from "../lib/filters";
 import { dateRangeLabel, dayLabel, dayParts } from "../lib/format";
+import { browserStorage, readFolds, writeFolds, type Folds } from "../lib/folds";
 import { planText } from "../lib/plan-text";
 import { call, post, put, type BoardData, type Reply } from "./api";
 import { CATEGORY_COLOR } from "./categories";
@@ -39,7 +40,8 @@ export function BoardScreen() {
   const [working, setWorking] = useState<"route" | "sources" | null>(null);
   const [workError, setWorkError] = useState<string | null>(null);
   // A day the traveller has opened or folded by hand; a day that is already past starts folded.
-  const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [folds, setFolds] = useState<Folds>(() => readFolds(browserStorage(), id));
+  const [planOpen, setPlanOpen] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
   const mapBlock = useRef<HTMLDivElement>(null);
@@ -148,6 +150,11 @@ export function BoardScreen() {
     el.classList.add("flash");
     setTimeout(() => el.classList.remove("flash"), 1600);
   };
+  const toggleFold = (day: string, folded: boolean) => {
+    const next = { ...folds, [day]: !folded };
+    setFolds(next);
+    writeFolds(browserStorage(), id, next);
+  };
   const clearMissing = () => void save({ ...plan, picks: plan.picks.filter((p) => !itinerary.missing.includes(p.id)) });
 
   async function build(what: "route" | "sources") {
@@ -220,7 +227,7 @@ export function BoardScreen() {
           )}
         </div>
       </header>
-      <main className="shell">
+      <main className={`shell${corridor ? " has-drawer" : ""}`}>
         <div className="stack">
           {locked && <p className="note">This trip is over. The board is read-only.</p>}
           {saveError && (
@@ -334,6 +341,7 @@ export function BoardScreen() {
               )}
               {total === 0 && sources && listings && <p className="note">Nothing found yet for the times you will be at each place.</p>}
               {total > 0 && count === 0 && <p className="note">Nothing matches these filters.</p>}
+              <div className="days">
               {shown.map((d) => {
                 const folded = folds[d.day] ?? d.day < today;
                 const { weekday, date } = dayParts(d.day);
@@ -361,7 +369,7 @@ export function BoardScreen() {
                       className="day-head"
                       aria-expanded={!folded}
                       aria-controls={`day-${d.day}`}
-                      onClick={() => setFolds((f) => ({ ...f, [d.day]: !folded }))}
+                      onClick={() => toggleFold(d.day, folded)}
                     >
                       <span className="dnum">{weekday}</span>{" "}
                       <span className="dsub">
@@ -394,37 +402,53 @@ export function BoardScreen() {
                   </section>
                 );
               })}
-            </section>
-            <section className="plan card stack" aria-labelledby="plan-title">
-              <div className="plan-bar">
-                <h2 id="plan-title">
-                  Your plan {plan.picks.length > 0 && <span className="dcount">{plan.picks.length}</span>}
-                </h2>
-                {itinerary.items.length > 0 && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      onClick={() => void copyPlan(planText(`${trip.from.label} to ${trip.to.label}`, itinerary, byId, tz))}
-                    >
-                      Copy plan
-                    </button>
-                    {!locked && (
-                      <button type="button" className="btn secondary" onClick={clearPlan}>
-                        Clear
-                      </button>
-                    )}
-                  </>
-                )}
               </div>
-              <ItineraryView itinerary={itinerary} tz={tz} routing={corridor.sources.routing} locked={locked} onRemove={togglePick} onClearMissing={clearMissing} />
-              {copyText !== null && (
-                <textarea className="copybox" readOnly value={copyText} aria-label="The plan as text, to copy" onFocus={(e) => e.currentTarget.select()} />
-              )}
             </section>
           </div>
         )}
       </main>
+      {corridor && (
+        <section
+          className="drawer"
+          aria-labelledby="plan-title"
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && planOpen) setPlanOpen(false);
+          }}
+        >
+          <div className="drawer-bar">
+            <h2 id="plan-title">
+              Your plan {plan.picks.length > 0 && <span className="dcount">{plan.picks.length}</span>}
+            </h2>
+            <div className="dbtns">
+              {itinerary.items.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    onClick={() => void copyPlan(planText(`${trip.from.label} to ${trip.to.label}`, itinerary, byId, tz))}
+                  >
+                    Copy plan
+                  </button>
+                  {!locked && (
+                    <button type="button" className="btn secondary" onClick={clearPlan}>
+                      Clear
+                    </button>
+                  )}
+                </>
+              )}
+              <button type="button" className="btn" aria-expanded={planOpen} aria-controls="plan-body" onClick={() => setPlanOpen((o) => !o)}>
+                {planOpen ? "Hide itinerary" : "Show itinerary"}
+              </button>
+            </div>
+          </div>
+          <div id="plan-body" className="drawer-body" hidden={!planOpen}>
+            <ItineraryView itinerary={itinerary} tz={tz} routing={corridor.sources.routing} locked={locked} onRemove={togglePick} onClearMissing={clearMissing} />
+            {copyText !== null && (
+              <textarea className="copybox" readOnly value={copyText} aria-label="The plan as text, to copy" onFocus={(e) => e.currentTarget.select()} />
+            )}
+          </div>
+        </section>
+      )}
       {toast}
     </>
   );

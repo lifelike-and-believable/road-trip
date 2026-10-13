@@ -60,7 +60,7 @@ Labels are small, uppercase and tracked. Content is mixed case. The scale:
 - **Filter bar.** Sticky at the top, translucent (`color-mix` of `--ground` with a 10px blur), pills that wrap and never scroll sideways. A focused element is never hidden behind it: `scroll-padding-top` on `html` leaves room.
 - **Days.** Each day opens with a full-width button: the weekday in the day-title style, the date and the count on the right, a chevron that turns when the day is folded, and a 2px `--ink` rule under it. A day that is already past starts folded.
 - **Inside a day.** Scheduled events are grouped under Morning (to 11:59), Afternoon (from noon), Evening (from 5 p.m.) and Late (from 8:30 p.m.), each with a band label and a count. Places with opening hours have no start time, so they are shown apart, in a group of cards headed "Open today" (the counterpart of Montreal's "Running all weekend").
-- **Plan.** Montreal's plan is a drawer fixed to the bottom of the screen with a count, "Show itinerary", "Copy plan" and "Clear".
+- **Plan.** A drawer fixed to the bottom of the screen, as on Montreal: a bar with the count, "Copy plan" and "Clear" (when there are picks) and "Show itinerary" / "Hide itinerary". It starts closed, opens to the itinerary, and Escape closes it. The page keeps room at its end so the bar never covers the last card, and the toast sits above it.
 - **Breakpoints** are 460, 560, 700, 720 and 760px.
 
 ## Components
@@ -85,7 +85,7 @@ Labels are small, uppercase and tracked. Content is mixed case. The scale:
 - Focus is a 2px outline in `--focus`, offset 2px.
 - Transitions are 0.12s on controls, 0.18s on the chevron and 0.2s on the toast, and are switched off under `prefers-reduced-motion`.
 - Colour is never the only signal. A dashed border on a clash is matched by a sentence; a category colour by its name.
-- What persists: picks, stars and hidden entries are saved per trip on the server, so they follow the traveller between devices. Fold state and other per-device preferences stay in the browser. Filters last only for the visit.
+- What persists: picks, stars and hidden entries are saved per trip on the server, so they follow the traveller between devices. Fold state and other per-device preferences stay in the browser (the day folds are kept per trip under `rt-folds-<id>`; a browser that will not store anything starts every day open). Filters last only for the visit.
 
 ## Voice
 
@@ -103,7 +103,6 @@ These are deliberate. Each has a reason.
 | Pills and buttons have no minimum height | At least 44px | The same. |
 | Focus outline is 2px | 3px | More visible. |
 | Calendar clashes, "+ Calendar", posters, weather, métro and neighbourhood, "Don't miss", the taste profile | Not carried over | They depend on a calendar, a home city and a single weekend, which a road trip does not have. The drive time between picks takes the place of the neighbourhood and line. |
-| Days side by side in columns | One column of days, with the plan beside it on wide screens | A trip can be a week long, and the plan needs the room. Not yet decided for good; see "Status". |
 | Em dashes in copy | The copy written so far uses commas and colons | Kept as it is. Match Montreal's dashes only if asked. |
 | Button "Unlock", gate title "The Weekend Board" | "Unlock", gate title "Road Trip" | The same words, with the app's own name. |
 
@@ -119,6 +118,7 @@ These are deliberate. Each has a reason.
 | Hide, "Bring back", "Hidden" chip | Built |
 | Copy plan, Clear, toast | Built |
 | Map of the route with a row of stops under it | Built (new; Montreal has no map) |
-| Plan as a bottom drawer | Not built |
-| Fold state kept in the browser | Not built |
+| Plan as a bottom drawer | Built |
+| Days side by side in columns on wide screens | Built |
+| Fold state kept in the browser (per trip, `rt-folds-<id>`) | Built |
 | Map | Not in Montreal; designed for Road Trip first, see `PLAN.md` |

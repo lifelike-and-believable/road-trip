@@ -78,6 +78,7 @@
 /* A sticky filter bar must not hide a focused element behind it. */
 html {
   scroll-padding-top: 6.5rem;
+  scroll-padding-bottom: 6rem;
 }
 
 body {
@@ -434,19 +435,18 @@ h3 {
 }
 
 .layout {
-  display: grid;
-  gap: 1.5rem;
   margin-top: 1rem;
 }
-@media (min-width: 52rem) {
-  .layout {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    align-items: start;
-  }
-  .plan {
-    position: sticky;
-    top: 4.5rem;
-  }
+
+/* The days are columns side by side on a wide screen, as on the Montreal board, and one column on a phone. */
+.days {
+  display: grid;
+  gap: 34px 30px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  align-items: start;
+}
+.days .day {
+  margin-bottom: 0;
 }
 
 /* A day: a full-width button with the weekday large, the date and the count at the right, and a chevron. */
@@ -732,10 +732,53 @@ h3 {
 }
 
 /* The plan. */
-.plan h2 {
+/* The plan: a bar fixed to the bottom with the count and the buttons, and the itinerary opening above it. */
+.shell.has-drawer {
+  padding-bottom: calc(110px + env(safe-area-inset-bottom));
+}
+.drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: var(--surface);
+  border-top: 2px solid var(--ink);
+  box-shadow: 0 -10px 40px -20px rgba(0, 0, 0, 0.4);
+}
+.drawer-bar {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 11px max(20px, env(safe-area-inset-right)) calc(11px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+}
+.drawer-bar h2 {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  font-size: 0.95rem;
+}
+.dbtns {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.drawer-body {
+  max-height: min(56vh, 520px);
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+  padding: 14px max(20px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+.drawer-body[hidden] {
+  display: none;
+}
+.drawer-body > * {
+  max-width: 1200px;
+  margin-inline: auto;
 }
 .dcount {
   font: 800 19px var(--sans);
@@ -843,7 +886,7 @@ h3 {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom));
+  bottom: calc(96px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 60;
   max-width: calc(100vw - 32px);
