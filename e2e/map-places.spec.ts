@@ -72,7 +72,8 @@ test.describe('listing pins on the map', () => {
     await page.goto(`/trips/${ID}`);
     await expect(pins(page)).toHaveCount(3);
     await card(page, 'Maple Museum').getByRole('button', { name: 'Hide Maple Museum' }).click();
-    await expect(pins(page)).toHaveCount(2);
+    // Its own pin goes, and so does Champlain's town pin, since nothing is left on the board there.
+    await expect(pins(page)).toHaveCount(1);
   });
 
   test('has no accessibility violations with the pins and buttons on the page', async ({ page }) => {
