@@ -1,4 +1,4 @@
-import { gate } from "../../../../../lib/auth";
+import { gate, personGate } from "../../../../../lib/auth";
 import { readJson, storeError } from "../../../../../lib/http";
 import { parsePlan, type PlanDoc } from "../../../../../lib/plan";
 import { getDoc, setDoc } from "../../../../../lib/store";
@@ -21,7 +21,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/trips/[id]/plan"
 
 /** Replace the whole plan. The board sends the complete set each time, as the Montreal board's sync does. */
 export async function PUT(req: Request, ctx: RouteContext<"/api/trips/[id]/plan">) {
-  const denied = gate(req);
+  const denied = personGate(req);
   if (denied) return denied;
   const { id } = await ctx.params;
   if (!isTripId(id)) return badId();

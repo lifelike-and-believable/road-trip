@@ -22,7 +22,7 @@ Open the app's address and sign in with the passcode (`BOARD_PASSCODE`).
 
 ## API
 
-All routes except `/api/health` and `/api/login` need the session cookie or the refresh job's bearer token.
+All routes except `/api/health` and `/api/login` need the session cookie or the refresh job's bearer token, with three exceptions: making a trip, deleting one and replacing its plan take the session cookie only, so a leaked job token cannot wipe or rewrite trips; and posting listings takes only the routine's token.
 
     POST   /api/login          {passcode}; sets the cookie. DELETE clears it
     GET    /api/session        {authed}
