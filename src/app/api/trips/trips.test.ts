@@ -29,6 +29,9 @@ vi.mock("../../../lib/store", async (orig) => {
   };
 });
 
+// `after` only works inside a running request; the work it schedules is tested in new-trip.test.ts.
+vi.mock("next/server", () => ({ after: () => {} }));
+
 import { GET as list, POST as create } from "./route";
 import { DELETE as remove, GET as read } from "./[id]/route";
 import { issueCookie } from "../../../lib/auth";

@@ -2,6 +2,7 @@
 
 import type { Corridor } from "../lib/corridor";
 import type { PlanDoc } from "../lib/plan";
+import type { PrepDoc } from "../lib/prep";
 import type { ListingsDoc } from "../lib/refresh";
 import type { presentTrip } from "../lib/trip";
 
@@ -12,6 +13,7 @@ export type BoardData = {
   corridor: Corridor | null;
   sources: { count: number } | null;
   listings: ListingsDoc | null;
+  prep: PrepDoc | null;
   plan: Pick<PlanDoc, "tripId" | "picks" | "starred" | "hidden"> & { updatedAt: string | null };
 };
 

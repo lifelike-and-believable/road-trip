@@ -6,7 +6,7 @@ The routine reads the app's trip, corridor, sources and listings endpoints and p
 
 Setup, once:
 
-1. At claude.ai/code/routines, create a routine named "Road Trip: read listings", scheduled daily. Give it web search and web fetch. In its cloud environment, allow outbound access to the app and to the web at large, since the pages it reads are on many different hosts.
+1. At claude.ai/code/routines, create a routine named "Road Trip: read listings", scheduled daily, and add an API trigger as well. Copy the trigger's address and generate its token (shown once) into the app's `ROUTINE_FIRE_URL` and `ROUTINE_FIRE_TOKEN` settings, so that a new trip starts the routine at once. Give it web search and web fetch. In its cloud environment, allow outbound access to the app and to the web at large, since the pages it reads are on many different hosts.
 2. Paste everything under the line into the routine's instructions, then edit the two lines at the top once: set `BASE` to the app's address and `ROUTINE_SECRET` to the routine's bearer token. The routine has no separate field for them. That token can read trips and post listings and nothing else. It is a different value from `REFRESH_SECRET`. Do not commit the real value to this file.
 
 ---
@@ -27,6 +27,7 @@ WORKING EFFICIENTLY. This runs every day, so keep it lean without cutting qualit
 - Build the payload in a JSON file with a script and send it from that file. Never retype listings in the conversation.
 
 STEP 1: Find the trips and the stops that are due.
+0. If this run was started with a line of text naming a trip id ("A trip was just made: ..."), that trip was made moments ago and its corridor and sources are ready: work only that trip, and treat every one of its stops as due, since nothing has been read yet. Otherwise this is the daily run and the steps below apply to every trip.
 1. `GET BASE/api/trips` lists the trips. Skip any with `status` "ended". Work through the rest soonest start first. An ended trip is never updated.
 2. For each trip get, and save to files:
    - `GET BASE/api/trips/<id>/corridor`: `legs[].stops[]` each have a `name`, a `region`, and `from` and `until`, the times the traveller is there (UTC instants). A stop on a round trip is visited once on each leg, so a name can appear twice: use every window for that name. If it returns 404, skip the trip: the app builds the corridor itself.

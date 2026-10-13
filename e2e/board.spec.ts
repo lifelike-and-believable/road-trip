@@ -168,9 +168,12 @@ test.describe('the board', () => {
   });
 
   test('says what is still to come when the route, sources or listings are missing', async ({ page }) => {
+    await page.route(`**/api/trips/${ID}/prepare`, (route) => route.fulfill({ status: 202, json: { started: true } }));
     await stubBoard(page, { data: { corridor: null, sources: null, listings: null } });
     await page.goto(`/trips/${ID}`);
-    await expect(page.getByRole('button', { name: 'Build the route now' })).toBeVisible();
+    // The steps are shown and the work starts by itself, with no button to build the route by hand.
+    await expect(page.getByRole('region', { name: 'Getting this trip ready' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Build the route now' })).toHaveCount(0);
   });
 
   test('has no accessibility violations and never hides a focused control behind the filter bar', async ({ page }) => {
