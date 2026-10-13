@@ -31,14 +31,19 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      # File names come from the pull request, so they never enter a script: they go to a file,
+      # NUL-separated, and reach squawk as arguments.
       - name: Find changed migrations
         id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          files=$(git diff --name-only --diff-filter=AM "${{ github.event.pull_request.base.sha }}...HEAD" -- '*.sql' | grep -E '(migrations|drizzle|prisma)/' || true)
-          echo "files=$(echo $files)" >> "$GITHUB_OUTPUT"
+          list="$RUNNER_TEMP/migrations"
+          git diff -z --name-only --diff-filter=AM "$BASE_SHA...HEAD" -- '*.sql' | { grep -zE '(migrations|drizzle|prisma)/' || true; } > "$list"
+          if [ -s "$list" ]; then echo "any=true" >> "$GITHUB_OUTPUT"; fi
       - name: squawk
-        if: steps.changed.outputs.files != ''
-        run: npx --yes squawk-cli ${{ steps.changed.outputs.files }}
+        if: steps.changed.outputs.any == 'true'
+        run: xargs -0 npx --yes squawk-cli@2.66.0 < "$RUNNER_TEMP/migrations"
 
   status:
     # One comment on the pull request when CI finishes, naming the head commit, so whoever

@@ -15,11 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BASE_URL: ${{ github.event.deployment_status.environment_url }}
-      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    # The bypass secret is given only to the two steps that send it, not to npm ci and its install scripts.
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.deployment.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -27,8 +28,12 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - name: Lighthouse CI (median of 3 runs)
-        run: npx --yes @lhci/cli autorun --collect.url="$BASE_URL" --collect.settings.extraHeaders="{\"x-vercel-protection-bypass\":\"$VERCEL_AUTOMATION_BYPASS_SECRET\"}"
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: npx --yes @lhci/cli@0.15.1 autorun --collect.url="$BASE_URL" --collect.settings.extraHeaders="{\"x-vercel-protection-bypass\":\"$VERCEL_AUTOMATION_BYPASS_SECRET\"}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
