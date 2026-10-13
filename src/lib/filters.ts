@@ -35,6 +35,12 @@ export function filterDays(days: Day[], filters: Filters, starred: Set<string>):
     .filter((d) => d.options.length > 0);
 }
 
+/** Everything but what the traveller has hidden. A flexible entry is hidden from every day it appears on, since it is one place. */
+export function withoutHidden(days: Day[], hidden: Set<string>): Day[] {
+  if (hidden.size === 0) return days;
+  return days.map((d) => ({ day: d.day, options: d.options.filter((o) => !hidden.has(o.id)) })).filter((d) => d.options.length > 0);
+}
+
 /** The categories that have something on, so a chip is never offered that would show nothing. */
 export function categoriesIn(days: Day[]): Category[] {
   const present = new Set(days.flatMap((d) => d.options.map((o) => o.listing.category)));

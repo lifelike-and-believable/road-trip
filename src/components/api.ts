@@ -12,7 +12,7 @@ export type BoardData = {
   corridor: Corridor | null;
   sources: { count: number } | null;
   listings: ListingsDoc | null;
-  plan: Pick<PlanDoc, "tripId" | "picks" | "starred"> & { updatedAt: string | null };
+  plan: Pick<PlanDoc, "tripId" | "picks" | "starred" | "hidden"> & { updatedAt: string | null };
 };
 
 export type Reply<T> = { ok: true; value: T } | { ok: false; status: number; message: string };

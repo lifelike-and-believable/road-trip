@@ -15,8 +15,8 @@ Open the app's address and sign in with the passcode (`BOARD_PASSCODE`).
 
 - **Make a trip** on the home page: where from and to, when you leave and when you are back or must arrive, and whether it is a round trip with time at the destination. The form sends each time with your own clock's offset.
 - **Open the trip** for its board. If its route has not been built yet there is a button to build it now, and then one to find its event sources; otherwise a daily job does both. The listings come from the daily routine (see "Who reads the listings") and appear on the board once it has run.
-- **The board** shows what is on, day by day in the trip's time zone, with the day sections folding. Filter by category, free only or starred. Star what you like, and add one or two stops to your plan.
-- **Your plan** lists the picks in time order with the time between each. A drive time appears only between two stops on the same leg of the trip, as the route's own estimate without traffic, and says so. An overlap, a back to back, or a drive longer than the gap is flagged. A flexible pick (a museum or park) is placed at the earliest time inside its opening hours that clears your other picks, drive included, and says so if it cannot be fitted.
+- **The board** shows what is on, day by day in the trip's time zone, with the day sections folding. Filter by category, free only or starred. Star what you like, add one or two stops to your plan, and hide what you do not want with the ✕ (the Hidden chip brings entries back).
+- **Your plan** lists the picks in time order with the time between each. A drive time appears only between two stops on the same leg of the trip, as the route's own estimate without traffic, and says so. An overlap, a back to back, or a drive longer than the gap is flagged. A flexible pick (a museum or park) is placed at the earliest time inside its opening hours that clears your other picks, drive included, and says so if it cannot be fitted. Copy plan puts the plan on the clipboard as plain text, a heading for each day and a line for each pick, and Clear empties it.
 - A trip that has ended stays readable but cannot be changed.
 
 ## API
@@ -31,8 +31,8 @@ All routes except `/api/health` and `/api/login` need the session cookie or the 
     GET    /api/trips/<id>
     DELETE /api/trips/<id>     also removes the trip's corridor, sources, listings and plan
     GET    /api/trips/<id>/board      everything one board needs: the trip, corridor, source count, listings and plan
-    GET    /api/trips/<id>/plan       the traveller's picks and stars
-    PUT    /api/trips/<id>/plan       replace them: {picks: [{id, at?}], starred: [id]}; refused once the trip has ended
+    GET    /api/trips/<id>/plan       the traveller's picks, stars and hidden entries
+    PUT    /api/trips/<id>/plan       replace them: {picks: [{id, at?}], starred: [id], hidden?: [id]}; refused once the trip has ended
     POST   /api/trips/<id>/corridor   build the route corridor once (active trips only)
     GET    /api/trips/<id>/corridor   the stored corridor
     POST   /api/trips/<id>/sources    find event sources for the corridor's stops once (needs the corridor)
