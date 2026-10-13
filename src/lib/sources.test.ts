@@ -69,6 +69,11 @@ describe("parseSources", () => {
     expect(out[0].near).toEqual(["Beta"]);
   });
 
+  it("keeps a directory of attractions or events as its own kind", () => {
+    const [s] = parseSources(reply([good({ kind: "directory", url: "https://www.tripadvisor.com/Attractions-g1-Beta.html" })]), STOPS);
+    expect(s.kind).toBe("directory");
+  });
+
   it("falls back to 'other' for an unknown kind and drops unknown timing values", () => {
     const [s] = parseSources(reply([good({ kind: "casino", covers: ["fixed", "whenever"] })]), STOPS);
     expect(s.kind).toBe("other");
@@ -121,6 +126,18 @@ describe("buildSources", () => {
     expect(system).toMatch(/untrusted/i);
     expect(system).toMatch(/concert|play/i);
     expect(system).toMatch(/museum/i);
+  });
+
+  // Official calendars alone found too little; directories are a baseline for every stop.
+  it("asks for TripAdvisor and other directories of events and attractions for every stop", async () => {
+    const ask = fake([reply([good()])]);
+    await buildSources(trip, corridor(STOPS), NOW, { ask, model: "m" });
+    const { system } = ask.mock.calls[0][0];
+    expect(system).toMatch(/every stop/i);
+    expect(system).toMatch(/TripAdvisor/);
+    expect(system).toMatch(/Eventbrite|AllEvents/);
+    expect(system).toMatch(/regional|provincial|state/i);
+    expect(system).toMatch(/"directory"|directory\|/);
   });
 
   it("merges the batches, de-duplicates across them, and totals the searches and tokens", async () => {

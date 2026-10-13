@@ -84,6 +84,9 @@ describe("refreshListings", () => {
     expect(first.system).toMatch(/untrusted/i);
     expect(first.system).toMatch(/fixed/);
     expect(first.system).toMatch(/flexible/);
+    // Directories as well as the stop's own pages, so a stop is not left with one or two things.
+    expect(first.system).toMatch(/TripAdvisor/);
+    expect(first.system).toMatch(/Eventbrite|AllEvents/);
   });
 
   it("stores the valid listings that fall in the visit windows and drops the rest", async () => {
