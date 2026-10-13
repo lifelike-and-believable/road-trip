@@ -85,6 +85,18 @@ export async function deleteDoc(p: string): Promise<void> {
   await redis(cmds);
 }
 
+const countKey = (name: string) => `count:${salt()}:${name}`;
+
+/** A counter that disappears a set time after its first count. */
+export async function bumpCount(name: string, windowSec: number): Promise<void> {
+  await redis([["INCR", countKey(name)], ["EXPIRE", countKey(name), String(windowSec), "NX"]]);
+}
+
+export async function readCount(name: string): Promise<number> {
+  const [v] = await redis(["GET", countKey(name)]);
+  return Number(v ?? 0) || 0;
+}
+
 /** Every document directly under a collection. */
 export async function listDocs<T = unknown>(c: string): Promise<{ id: string; data: T }[]> {
   const [ids] = await redis(["SMEMBERS", colKey(c)]);
