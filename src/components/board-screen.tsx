@@ -201,8 +201,18 @@ export function BoardScreen() {
   // While the work is going on, look again every few seconds.
   useEffect(() => {
     if (!preparing || prepView?.settled) return;
-    const timer = setInterval(() => void look(), PREP_POLL_MS);
-    return () => clearInterval(timer);
+    // A hidden tab does not ask, for up to half an hour of preparation; it looks again as soon as it is shown.
+    const timer = setInterval(() => {
+      if (!document.hidden) void look();
+    }, PREP_POLL_MS);
+    const onShow = () => {
+      if (!document.hidden) void look();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onShow);
+    };
   }, [preparing, prepView?.settled, look]);
 
   async function save(next: Plan) {
