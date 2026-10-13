@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dateRangeLabel, dayLabel, durationLabel } from "./format";
+import { dateRangeLabel, dayLabel, durationLabel, statusLabel, zoneName } from "./format";
 
 describe("dayLabel", () => {
   it("names the day the way the Montreal board does: weekday, day, month", () => {
@@ -55,5 +55,21 @@ describe("dateRangeLabel", () => {
   it("names the day once for a trip that starts and ends on it, and both days otherwise", () => {
     expect(dateRangeLabel("2026-10-17", "2026-10-17")).toBe("Saturday 17 October");
     expect(dateRangeLabel("2026-10-17", "2026-10-19")).toBe("Saturday 17 October to Monday 19 October");
+  });
+});
+
+describe("statusLabel", () => {
+  it("says where a trip stands in plain words", () => {
+    expect(statusLabel("upcoming")).toBe("Coming up");
+    expect(statusLabel("underway")).toBe("On the road");
+    expect(statusLabel("ended")).toBe("Over");
+  });
+});
+
+describe("zoneName", () => {
+  it("names the trip's time zone as a person would, for the date given", () => {
+    expect(zoneName("America/Toronto", "2026-10-17T12:00:00Z")).toBe("Eastern Daylight Time");
+    expect(zoneName("America/Toronto", "2026-12-17T12:00:00Z")).toBe("Eastern Standard Time");
+    expect(zoneName(undefined, "2026-10-17T12:00:00Z")).toBe("Coordinated Universal Time");
   });
 });

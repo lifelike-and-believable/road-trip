@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { clockTime, localDay, localTime, type Itinerary } from "../lib/board";
+import { clockTime, itineraryDays, localTime, type Itinerary } from "../lib/board";
 import { dayLabel, describeGap, durationLabel } from "../lib/format";
 
 type Props = {
@@ -17,8 +17,8 @@ type Props = {
 
 /** The picks in time order with the gap between each. A drive time is the route's own estimate, never invented. */
 export function ItineraryView({ itinerary, tz, routing, locked, onRemove, onEmptied, onSetTime, onClearMissing }: Props) {
-  const { items, gaps, missing } = itinerary;
-  const list = useRef<HTMLOListElement>(null);
+  const { items, missing } = itinerary;
+  const list = useRef<HTMLDivElement>(null);
   // Where focus goes once the removed item's button has left the page.
   const focusAfter = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -38,49 +38,52 @@ export function ItineraryView({ itinerary, tz, routing, locked, onRemove, onEmpt
   if (items.length === 0 && missing.length === 0) {
     return <p className="note">Add one or two stops from the list and they land here in order, with the time between them.</p>;
   }
-  const placedCount = items.filter((i) => i.placed !== "unplaceable").length;
   return (
-    <div className="stack">
-      <ol className="itinerary" ref={list}>
-        {items.flatMap((item, i) => {
-          const day = item.day ?? (item.startAt ? localDay(item.startAt, tz) : undefined);
-          const rows = [
-            <li key={item.id} className="item slot">
-              <span className="stime">{item.startAt ? localTime(item.startAt, tz) : "No time"}</span>
-              <div className="sbody">
-                <strong>{item.title}</strong>
-                <span className="swhere">
-                  {day ? `${dayLabel(day)} · ` : ""}near {item.stop}
-                  {item.endAt ? ` · until ${localTime(item.endAt, tz)}` : ""}
-                  {item.placed === "auto" && item.endAt ? ` · about ${durationLabel((Date.parse(item.endAt) - Date.parse(item.startAt!)) / 60000)} there` : ""}
-                </span>
-                {item.placed === "unplaceable" && (
-                  <span className="sclash">It cannot be fitted within its opening hours alongside your other picks.</span>
-                )}
-                {item.warning === "outside-hours" && <span className="sclash">That time is outside its opening hours.</span>}
-                {item.kind === "flexible" && item.day && !locked && (
-                  <TimeSetter id={item.id} title={item.title} day={item.day} value={item.startAt ? clockTime(item.startAt, tz) : ""} chosen={item.placed === "chosen"} onSetTime={onSetTime} />
-                )}
-              </div>
-              {!locked && (
-                <button type="button" className="xbtn" aria-label={`Remove ${item.title} from your plan`} onClick={(e) => remove(item.id, e.currentTarget)}>
-                  <span aria-hidden="true">×</span>
-                </button>
-              )}
-            </li>,
-          ];
-          const gap = i < placedCount - 1 ? gaps[i] : undefined;
-          if (gap) {
-            const d = describeGap(gap);
-            rows.push(
-              <li key={`${item.id}-gap`} className={d.warn ? "gap warn" : "gap"}>
-                {d.text}
-              </li>,
-            );
-          }
-          return rows;
-        })}
-      </ol>
+    <div className="stack" ref={list}>
+      {itineraryDays(itinerary, tz).map(({ day, rows }) => (
+        <section key={day ?? "unplaced"} className="iday" aria-label={day ? dayLabel(day) : "Not fitted yet"}>
+          <h3 className="iday-head">{day ? dayLabel(day) : "Not fitted yet"}</h3>
+          <ol className="itinerary">
+            {rows.flatMap(({ item, gap }) => {
+              const length = item.startAt && item.endAt ? (Date.parse(item.endAt) - Date.parse(item.startAt)) / 60000 : null;
+              const out = [
+                <li key={item.id} className="item slot">
+                  <span className="stime">{item.startAt ? localTime(item.startAt, tz) : "No time"}</span>
+                  <div className="sbody">
+                    <strong>{item.title}</strong>
+                    <span className="swhere">
+                      near {item.stop}
+                      {item.endAt ? ` · until ${localTime(item.endAt, tz)}` : ""}
+                      {item.placed === "auto" && length !== null ? ` · about ${durationLabel(length)} there` : ""}
+                    </span>
+                    {item.placed === "unplaceable" && (
+                      <span className="sclash">It cannot be fitted within its opening hours alongside your other picks.</span>
+                    )}
+                    {item.warning === "outside-hours" && <span className="sclash">That time is outside its opening hours.</span>}
+                    {item.kind === "flexible" && item.day && !locked && (
+                      <TimeSetter id={item.id} title={item.title} day={item.day} value={item.startAt ? clockTime(item.startAt, tz) : ""} chosen={item.placed === "chosen"} onSetTime={onSetTime} />
+                    )}
+                  </div>
+                  {!locked && (
+                    <button type="button" className="xbtn" aria-label={`Remove ${item.title} from your plan`} onClick={(e) => remove(item.id, e.currentTarget)}>
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  )}
+                </li>,
+              ];
+              if (gap) {
+                const d = describeGap(gap);
+                out.push(
+                  <li key={`${item.id}-gap`} className={d.warn ? "gap warn" : "gap"}>
+                    {d.text}
+                  </li>,
+                );
+              }
+              return out;
+            })}
+          </ol>
+        </section>
+      ))}
       {missing.length > 0 && (
         <p className="note">
           {missing.length === 1 ? "One pick is" : `${missing.length} picks are`} no longer listed.{" "}

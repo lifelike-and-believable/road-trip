@@ -9,6 +9,21 @@ export function dayParts(day: string): { weekday: string; date: string } {
   return { weekday: part({ weekday: "long" }), date: `${d.getUTCDate()} ${part({ month: "long" })}` };
 }
 
+const STATUS: Record<"upcoming" | "underway" | "ended", string> = { upcoming: "Coming up", underway: "On the road", ended: "Over" };
+
+/** Where a trip stands, in the words the board shows. */
+export function statusLabel(status: "upcoming" | "underway" | "ended"): string {
+  return STATUS[status];
+}
+
+/** The trip's time zone as a person names it, such as "Eastern Daylight Time", for the given moment. */
+export function zoneName(tz: string | undefined, at: string): string {
+  const part = new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", timeZoneName: "long" })
+    .formatToParts(new Date(at))
+    .find((p) => p.type === "timeZoneName");
+  return part?.value ?? tz ?? "UTC";
+}
+
 /** "2026-10-17" as "Saturday 17 October". */
 export function dayLabel(day: string): string {
   const { weekday, date } = dayParts(day);

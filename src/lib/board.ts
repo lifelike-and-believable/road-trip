@@ -126,6 +126,39 @@ export function boardDays(corridor: Corridor, listings: ListingsDoc | null, tz?:
     }));
 }
 
+/** When the traveller is at a town on a day, from the corridor's estimate, or null when the road does not pass it then. */
+export function passingNote(corridor: Corridor, stop: string, day: string, tz?: string): string | null {
+  const v = visitsOf(corridor, stop).find((x) => localDay(iso(x.from), tz) <= day && day <= localDay(iso(x.until), tz));
+  if (!v) return null;
+  const at = (ms: number) => localTime(iso(ms), tz);
+  if (v.until - v.from < 30 * MINUTE_MS) return `You pass ${stop} about ${at(v.from)} (estimated)`;
+  const fromDay = localDay(iso(v.from), tz);
+  const untilDay = localDay(iso(v.until), tz);
+  if (fromDay === untilDay) return `You are near ${stop} from ${at(v.from)} to ${at(v.until)} (estimated)`;
+  const weekday = (d: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", weekday: "long" }).format(new Date(`${d}T12:00:00Z`));
+  return `You are near ${stop} from ${at(v.from)} ${weekday(fromDay)} to ${at(v.until)} ${weekday(untilDay)} (estimated)`;
+}
+
+export type ItineraryRow = { item: ItineraryItem; /** To the next pick, only when it is on the same day. */ gap?: Gap };
+
+/** The itinerary by day. A gap across midnight is not free time, so it is left out; picks that could not be placed come last, with no day. */
+export function itineraryDays(itinerary: Itinerary, tz?: string): Array<{ day: string | null; rows: ItineraryRow[] }> {
+  const out: Array<{ day: string | null; rows: ItineraryRow[] }> = [];
+  const placed = itinerary.items.filter((i): i is ItineraryItem & { startAt: string } => i.startAt !== null);
+  const dayOf = (i: ItineraryItem & { startAt: string }) => i.day ?? localDay(i.startAt, tz);
+  placed.forEach((item, i) => {
+    const day = dayOf(item);
+    const next = placed[i + 1];
+    const row: ItineraryRow = next && dayOf(next) === day && itinerary.gaps[i] ? { item, gap: itinerary.gaps[i] } : { item };
+    const last = out.at(-1);
+    if (last && last.day === day) last.rows.push(row);
+    else out.push({ day, rows: [row] });
+  });
+  const unplaced = itinerary.items.filter((i) => i.startAt === null);
+  if (unplaced.length) out.push({ day: null, rows: unplaced.map((item) => ({ item })) });
+  return out;
+}
+
 /** "09:00" for a time field: the 24-hour clock reading of an instant in the trip's zone. */
 export function clockTime(iso: string, tz?: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));

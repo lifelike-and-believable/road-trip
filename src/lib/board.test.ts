@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardDays, buildItinerary, instantIn, localDay, localTime, SLACK_MIN, type Pick } from "./board";
+import { boardDays, buildItinerary, instantIn, itineraryDays, localDay, localTime, passingNote, SLACK_MIN, type Pick } from "./board";
 import type { Corridor, Stop } from "./corridor";
 import { PASS_SLACK_MIN, type Listing } from "./listing";
 import type { ListingsDoc } from "./refresh";
@@ -237,5 +237,42 @@ describe("instantIn", () => {
     expect(instantIn("2026-03-08", "02:30", TZ)).toBeNull();
     expect(instantIn("2026-10-18", "25:00", TZ)).toBeNull();
     expect(instantIn("2026-10-18", "", TZ)).toBeNull();
+  });
+});
+
+describe("passingNote", () => {
+  it("says when the traveller passes a town on that day, as an estimate", () => {
+    expect(passingNote(corridor, "B", "2026-10-17", TZ)).toBe("You pass B about 9:00 a.m. (estimated)");
+  });
+
+  it("gives the span when the traveller is there a while, and picks the visit on that day", () => {
+    // C is reached at 10:00 Saturday and left at 10:00 Sunday
+    expect(passingNote(corridor, "C", "2026-10-17", TZ)).toBe("You are near C from 10:00 a.m. Saturday to 10:00 a.m. Sunday (estimated)");
+    expect(passingNote(corridor, "B", "2026-10-18", TZ)).toBe("You pass B about 11:00 a.m. (estimated)");
+  });
+
+  it("says nothing for a town the road does not pass", () => {
+    expect(passingNote(corridor, "Nowhere", "2026-10-17", TZ)).toBeNull();
+  });
+});
+
+describe("itineraryDays", () => {
+  it("groups the plan by day and leaves out the gap from one day to the next", () => {
+    const sat = fixed("sat", "B", 13, 60);
+    const sat2 = fixed("sat2", "B", 16, 60);
+    const sun = fixed("sun", "B", 39, 60);
+    const it = buildItinerary([pick("sun"), pick("sat"), pick("sat2")], index(sat, sat2, sun), corridor, TZ);
+    const days = itineraryDays(it, TZ);
+    expect(days.map((d) => d.day)).toEqual(["2026-10-17", "2026-10-18"]);
+    expect(days[0].rows.map((r) => [r.item.id, !!r.gap])).toEqual([["sat", true], ["sat2", false]]);
+    expect(days[1].rows.map((r) => [r.item.id, !!r.gap])).toEqual([["sun", false]]);
+  });
+
+  it("puts picks that could not be placed in a group of their own at the end", () => {
+    const closed = flexible("closed", "B", [[9, 10]], 90);
+    const sat = fixed("sat", "B", 13, 60);
+    const days = itineraryDays(buildItinerary([pick("closed"), pick("sat")], index(closed, sat), corridor, TZ), TZ);
+    expect(days.map((d) => d.day)).toEqual(["2026-10-17", null]);
+    expect(days[1].rows[0].item.id).toBe("closed");
   });
 });
