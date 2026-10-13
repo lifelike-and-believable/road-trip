@@ -65,12 +65,24 @@ test.describe('the plan drawer', () => {
     await stubBoard(page);
     await page.goto(`/trips/${ID}`);
     await expect(page.getByRole('button', { name: 'Show itinerary' })).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    const box = await drawer(page).boundingBox();
+    // The page can still grow after it first renders (cards, the map), so scroll to the end again on each look
+    // and judge only once the layout has stopped moving.
     const viewport = page.viewportSize();
-    expect(box && viewport && Math.abs(box.y + box.height - viewport.height) < 2).toBe(true);
-    const last = await page.locator('article').last().boundingBox();
-    expect(last && box && last.y + last.height <= box.y).toBe(true);
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        const box = await drawer(page).boundingBox();
+        return !!(box && viewport && Math.abs(box.y + box.height - viewport.height) < 2);
+      })
+      .toBe(true);
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        const box = await drawer(page).boundingBox();
+        const last = await page.locator('article').last().boundingBox();
+        return !!(box && last && last.y + last.height <= box.y);
+      })
+      .toBe(true);
   });
 
   test('has no accessibility violations with the drawer open', async ({ page }) => {
@@ -93,12 +105,12 @@ test.describe('the days', () => {
     await page.goto(`/trips/${ID}`);
     const days = page.locator('section.day');
     await expect(days).toHaveCount(2);
-    const [a, b] = [await days.nth(0).boundingBox(), await days.nth(1).boundingBox()];
-    expect(a && b && Math.abs(a.y - b.y) < 2 && b.x > a.x).toBe(true);
+    const boxes = async () => [await days.nth(0).boundingBox(), await days.nth(1).boundingBox()] as const;
+    await expect.poll(async () => { const [a, b] = await boxes(); return !!(a && b && Math.abs(a.y - b.y) < 2 && b.x > a.x); }).toBe(true);
 
+    // The layout follows the resize a moment later, so wait for it.
     await page.setViewportSize({ width: 390, height: 900 });
-    const [c, d] = [await days.nth(0).boundingBox(), await days.nth(1).boundingBox()];
-    expect(c && d && d.y > c.y && Math.abs(d.x - c.x) < 2).toBe(true);
+    await expect.poll(async () => { const [c, d] = await boxes(); return !!(c && d && d.y > c.y && Math.abs(d.x - c.x) < 2); }).toBe(true);
   });
 
   test('remember which were folded, for the next visit to the same trip', async ({ page }) => {
