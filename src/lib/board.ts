@@ -63,6 +63,8 @@ export type Option = {
   start: string;
   /** A fixed listing's end if its length is known, or a flexible listing's closing time on this day. */
   end: string | null;
+  /** A flexible listing's opening periods on this day, in order; more than one when it closes in between. */
+  periods?: Array<{ opens: string; closes: string }>;
 };
 
 export type Day = { day: string; options: Option[] };
@@ -90,9 +92,21 @@ export function boardDays(corridor: Corridor, listings: ListingsDoc | null, tz?:
           end: listing.schedule.durationMin ? new Date(end).toISOString() : null,
         });
       } else {
-        for (const h of listing.schedule.hours) {
+        // One entry a day, however many times the place opens that day, so its id is not listed twice.
+        const today = new Map<string, Option>();
+        const hours = [...listing.schedule.hours].sort((a, b) => Date.parse(a.opens) - Date.parse(b.opens));
+        for (const h of hours) {
           if (!near(visits, Date.parse(h.opens), Date.parse(h.closes))) continue;
-          add({ ...base, kind: "flexible", day: localDay(h.opens, tz), start: h.opens, end: h.closes });
+          const day = localDay(h.opens, tz);
+          const seen = today.get(day);
+          if (seen) {
+            seen.periods?.push({ opens: h.opens, closes: h.closes });
+            if (Date.parse(h.closes) > Date.parse(seen.end ?? seen.start)) seen.end = h.closes;
+            continue;
+          }
+          const option: Option = { ...base, kind: "flexible", day, start: h.opens, end: h.closes, periods: [{ opens: h.opens, closes: h.closes }] };
+          today.set(day, option);
+          add(option);
         }
       }
     }

@@ -92,6 +92,15 @@ test.describe('hiding entries', () => {
     await expect(page.getByRole('button', { name: '1 hidden' })).toBeVisible();
   });
 
+  test('keeps the Hidden chip, and says why the board is empty, when everything is hidden', async ({ page }) => {
+    await stubBoard(page, { plan: { hidden: ['aaaaaaaaaaa1', 'aaaaaaaaaaa2', 'aaaaaaaaaaa3'] } });
+    await page.goto(`/trips/${ID}`);
+    await expect(page.getByText('Everything found is hidden.')).toBeVisible();
+    await expect(page.getByText(/Nothing found yet/)).toHaveCount(0);
+    await page.getByRole('button', { name: '3 hidden' }).click();
+    await expect(card(page, 'Lakeside play')).toContainText('Hidden from your board.');
+  });
+
   test('offers no hide control once the trip is over', async ({ page }) => {
     await stubBoard(page, { status: 'ended' });
     await page.goto(`/trips/${ID}`);
@@ -131,5 +140,29 @@ test.describe('the plan text', () => {
     expect(saved.at(-1)).toMatchObject({ picks: [] });
     await page.getByRole('button', { name: 'Show itinerary' }).click();
     await expect(page.getByText('Add one or two stops from the list')).toBeVisible();
+  });
+
+  test('puts back a cleared plan with Undo clear', async ({ page }) => {
+    const saved = await stubBoard(page);
+    await page.goto(`/trips/${ID}`);
+    await card(page, 'Farm market concert').getByRole('button', { name: /^Add/ }).click();
+    await card(page, 'Lakeside play').getByRole('button', { name: /^Add/ }).click();
+    await page.getByRole('button', { name: 'Clear' }).click();
+    expect(saved.at(-1)).toMatchObject({ picks: [] });
+    const undo = page.getByRole('button', { name: 'Undo clear' });
+    await expect(undo).toBeFocused();
+    await undo.click();
+    await expect.poll(() => saved.at(-1)).toMatchObject({ picks: [{ id: 'aaaaaaaaaaa2' }, { id: 'aaaaaaaaaaa3' }] });
+    await expect(undo).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Clear' })).toBeVisible();
+  });
+
+  test('stops offering Undo clear once something new is added', async ({ page }) => {
+    await stubBoard(page);
+    await page.goto(`/trips/${ID}`);
+    await card(page, 'Farm market concert').getByRole('button', { name: /^Add/ }).click();
+    await page.getByRole('button', { name: 'Clear' }).click();
+    await card(page, 'Lakeside play').getByRole('button', { name: /^Add/ }).click();
+    await expect(page.getByRole('button', { name: 'Undo clear' })).toHaveCount(0);
   });
 });

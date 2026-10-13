@@ -41,7 +41,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 function instant(v: unknown): number | null {
   if (typeof v !== "string" || !WITH_OFFSET.test(v)) return null;
   const ms = Date.parse(v);
-  return Number.isNaN(ms) ? null : ms;
+  return Number.isNaN(ms) || !isCalendarDate(v) ? null : ms;
+}
+
+/* Date.parse turns 31 September into 1 October, so the written date is checked against
+   the month's length. The offset does not change which dates exist. */
+function isCalendarDate(v: string): boolean {
+  const [y, m, d] = v.slice(0, 10).split("-").map(Number);
+  return d >= 1 && d <= new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
 export { instant as parseInstant };

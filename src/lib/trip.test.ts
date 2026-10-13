@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeTrips, isActive, legsOf, parseTripInput, presentTrip, tripStatus, type Trip } from "./trip";
+import { activeTrips, isActive, legsOf, parseInstant, parseTripInput, presentTrip, tripStatus, type Trip } from "./trip";
 
 const NOW = new Date("2026-10-12T12:00:00Z");
 
@@ -205,5 +205,20 @@ describe("tripStatus and isActive", () => {
     const live = trip();
     const old = { ...trip(), id: "t2", end: "2026-10-11T00:00:00.000Z", start: "2026-10-10T00:00:00.000Z" };
     expect(activeTrips([live, old], NOW).map((t) => t.id)).toEqual(["t1"]);
+  });
+});
+
+describe("parseInstant", () => {
+  it("refuses a day the month does not have, instead of rolling it into the next month", () => {
+    expect(parseInstant("2026-09-31T19:00:00-04:00")).toBeNull();
+    expect(parseInstant("2026-02-30T10:00Z")).toBeNull();
+    expect(parseInstant("2026-02-29T10:00Z")).toBeNull();
+    expect(parseInstant("2026-04-00T10:00Z")).toBeNull();
+  });
+
+  it("accepts real dates, the last day of a month and a leap day among them", () => {
+    expect(parseInstant("2026-09-30T19:00:00-04:00")).toBe(Date.parse("2026-09-30T23:00:00Z"));
+    expect(parseInstant("2028-02-29T10:00Z")).toBe(Date.parse("2028-02-29T10:00:00Z"));
+    expect(parseInstant("2026-12-31T23:59:59.5+05:30")).toBe(Date.parse("2026-12-31T18:29:59.5Z"));
   });
 });

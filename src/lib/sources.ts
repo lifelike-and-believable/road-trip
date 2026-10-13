@@ -175,7 +175,8 @@ export async function buildSources(trip: Trip, corridor: Corridor, now: Date, de
 
   const merged = new Map<string, Source>();
   replies.forEach((reply, i) => merge(merged, parseSources(reply.text, batches[i].map((s) => s.name))));
-  if (!merged.size) throw new SourcesError("no_sources", "no usable sources came back for this route");
+  // A short route can pass no towns; then nothing was asked, and an empty list is the true answer.
+  if (!merged.size && batches.length > 0) throw new SourcesError("no_sources", "no usable sources came back for this route");
 
   return {
     tripId: trip.id,

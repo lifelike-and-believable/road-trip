@@ -91,6 +91,14 @@ describe("describePrep", () => {
     expect(describePrep(null, { corridor: true, sources: true, listings: 3 }, NOW).needsStart).toBe(false);
   });
 
+  it("says there is nothing to read when the road passes no towns, instead of waiting or failing", () => {
+    const r = describePrep(prep({ state: "done", routine: { fired: true } }), { corridor: true, sources: true, listings: 0, stops: 0 }, NOW);
+    expect(states(r)).toEqual(["done", "done", "done"]);
+    expect(r.steps[2].note).toMatch(/no towns/);
+    expect(r.canRetry).toBe(false);
+    expect(r.settled).toBe(true);
+  });
+
   it("stops waiting for the routine after a long time and says it is taking longer than usual", () => {
     const r = describePrep(prep({ state: "done", updatedAt: ago(40 * MIN), routine: { fired: true } }), { corridor: true, sources: true, listings: 0 }, NOW);
     expect(r.steps[2].note).toMatch(/longer than usual/);

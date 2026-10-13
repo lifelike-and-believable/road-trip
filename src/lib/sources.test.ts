@@ -153,6 +153,14 @@ describe("buildSources", () => {
     await expect(buildSources(trip, corridor(STOPS), NOW, { ask, model: "m" })).rejects.toMatchObject({ code: "no_sources" });
   });
 
+  // A short route can pass no towns. There is nothing to search for, which is not a failure.
+  it("stores an empty list without asking when the road passes no towns", async () => {
+    const ask = fake([]);
+    const list = await buildSources(trip, corridor([], false), NOW, { ask, model: "m" });
+    expect(ask).not.toHaveBeenCalled();
+    expect(list).toMatchObject({ tripId: "t1", stopsSearched: [], searches: 0, sources: [] });
+  });
+
   it("caps the stored list", async () => {
     const many = Array.from({ length: 80 }, (_, i) => good({ url: `https://s${i}.example/e` }));
     const list = await buildSources(trip, corridor(STOPS), NOW, { ask: fake([reply(many)]), model: "m" });
