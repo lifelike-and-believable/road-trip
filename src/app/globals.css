@@ -978,3 +978,31 @@ h3 {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+
+/* Getting a trip ready */
+.prep-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.prep-step {
+  display: grid;
+  grid-template-columns: 1.4em 1fr;
+  gap: 6px;
+  align-items: baseline;
+}
+.prep-mark {
+  font-variation-settings: "wdth" 90, "wght" 700;
+  color: var(--ink-3);
+}
+.prep-step.done .prep-mark {
+  color: var(--accent);
+}
+.prep-step.failed .prep-mark {
+  color: var(--brick);
+}
+.prep-step.working .prep-mark {
+  color: var(--accent-2);
+}

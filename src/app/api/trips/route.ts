@@ -6,6 +6,7 @@ import { readJson, storeError } from "../../../lib/http";
 import { listingsBy } from "../../../lib/listings-by";
 import { liveDeps } from "../../../lib/live-deps";
 import { prepareNewTrip } from "../../../lib/on-create";
+import { workingDoc } from "../../../lib/prep";
 import { listDocs, setDoc } from "../../../lib/store";
 import { parseTripInput, presentTrip, type Trip } from "../../../lib/trip";
 
@@ -45,6 +46,13 @@ export async function POST(req: Request) {
   const trip: Trip = { id: randomUUID(), createdAt: now.toISOString(), ...parsed.value };
   try {
     await setDoc(`trips/${trip.id}`, trip);
+  } catch (e) {
+    return storeError("trips", e);
+  }
+
+  // Marked before the answer, so the board that opens next sees it under way and does not start the same work again.
+  try {
+    await setDoc(`prep/${trip.id}`, workingDoc(trip.id, now));
   } catch (e) {
     return storeError("trips", e);
   }
