@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildCorridor, type CorridorDeps } from "./corridor";
+import { OsmError } from "./osm";
 import type { LonLat } from "./geo";
 import { parseTripInput, type Trip } from "./trip";
 
@@ -185,5 +186,15 @@ describe("a round trip with a stay", () => {
     expect(out.fits).toBe(true);
     expect(back.fits).toBe(false);
     expect(back.stops.length).toBeGreaterThan(2);
+  });
+});
+
+describe("a place the map cannot find", () => {
+  it("says which end of the trip it was", async () => {
+    const geocode = vi.fn(async (q: string) => {
+      if (q === "Omega") throw new OsmError("not_found", 'no place found for "Omega"');
+      return { lat: 0, lon: 0, displayName: q };
+    });
+    await expect(buildCorridor(trip({}, false), NOW, deps({ geocode }))).rejects.toMatchObject({ code: "not_found", place: "to" });
   });
 });

@@ -14,7 +14,8 @@ const TIMEOUT_MS = 10_000;
 export type OsmErrorCode = "not_found" | "no_route" | "upstream";
 
 export class OsmError extends Error {
-  constructor(readonly code: OsmErrorCode, message: string) {
+  /** `place` is which end of the trip a lookup was for, when the corridor knows. */
+  constructor(readonly code: OsmErrorCode, message: string, readonly place?: "from" | "to") {
     super(message);
     this.name = "OsmError";
   }

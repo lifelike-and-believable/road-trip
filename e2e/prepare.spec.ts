@@ -86,6 +86,13 @@ test.describe('getting a trip ready', () => {
     await expect.poll(() => started.n).toBe(1);
   });
 
+  test('says which place the map could not find, with no Try again', async ({ page }) => {
+    await stub(page, [{ prep: prep({ state: 'failed', corridor: 'failed', sources: 'skipped', problem: { code: 'not_found', place: 'to' } }) }]);
+    await page.goto(`/trips/${ID}`);
+    await expect(panel(page).locator('li').first()).toContainText('"To" could not be found on the map');
+    await expect(panel(page).getByRole('button', { name: 'Try again' })).toHaveCount(0);
+  });
+
   test('explains when the routine was not set up to start by itself', async ({ page }) => {
     await stub(page, [{ corridor, sources: { count: 2 }, prep: prep({ state: 'done', corridor: 'built', sources: 'built', routine: { fired: false, reason: 'not_configured' } }) }]);
     await page.goto(`/trips/${ID}`);

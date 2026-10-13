@@ -47,7 +47,13 @@ export function BoardScreen() {
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [plan, setPlan] = useState<Plan>({ picks: [], starred: [], hidden: [] });
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  // A save the server refused: its status, and the plan to send again on Try again.
+  const [saveFailure, setSaveFailure] = useState<{ status: number; plan: Plan } | null>(null);
+  // The plan as the server last confirmed it, which a failed save puts back on screen.
+  const savedPlan = useRef<Plan>({ picks: [], starred: [], hidden: [] });
+  // Saves go one at a time and the newest waiting one is sent next, so a slow save cannot land after a later one.
+  const sending = useRef(false);
+  const waiting = useRef<Plan | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [workError, setWorkError] = useState<string | null>(null);
   // The time the panel judges "taking too long" against; moved on with each look at the server.
@@ -73,7 +79,9 @@ export function BoardScreen() {
   const apply = useCallback((r: Reply<BoardData>) => {
     if (r.ok) {
       setLoad({ kind: "ready", data: r.value });
-      setPlan({ picks: r.value.plan.picks, starred: r.value.plan.starred, hidden: r.value.plan.hidden ?? [] });
+      const loaded = { picks: r.value.plan.picks, starred: r.value.plan.starred, hidden: r.value.plan.hidden ?? [] };
+      savedPlan.current = loaded;
+      setPlan(loaded);
     } else {
       setLoad({ kind: "error", status: r.status, message: r.message });
     }
@@ -150,8 +158,25 @@ export function BoardScreen() {
   async function save(next: Plan) {
     setPlan(next);
     if (next.picks.length > 0) setCleared(null);
-    const r = await put(`/api/trips/${id}/plan`, next);
-    setSaveError(r.ok ? null : r.message);
+    setSaveFailure(null);
+    waiting.current = next;
+    if (sending.current) return;
+    sending.current = true;
+    while (waiting.current) {
+      const attempt = waiting.current;
+      waiting.current = null;
+      const r = await put(`/api/trips/${id}/plan`, attempt);
+      if (r.ok) {
+        savedPlan.current = attempt;
+        continue;
+      }
+      // Anything waiting was made on top of the refused plan, so it is offered again as one.
+      setSaveFailure({ status: r.status, plan: waiting.current ?? attempt });
+      waiting.current = null;
+      setPlan(savedPlan.current);
+      show("Not saved");
+    }
+    sending.current = false;
   }
 
   const togglePick = (listingId: string) => {
@@ -292,9 +317,22 @@ export function BoardScreen() {
       <main className={`shell${corridor ? " has-drawer" : ""}`}>
         <div className="stack">
           {locked && <p className="note">This trip is over. The board is read-only.</p>}
-          {saveError && (
+          {saveFailure && (
             <p className="alert" role="alert">
-              Your last change was not saved: {saveError}
+              {saveFailure.status === 401 ? (
+                <>
+                  Your last change was not saved because you have been signed out. <Link href="/">Sign in again</Link>
+                </>
+              ) : saveFailure.status === 409 ? (
+                "Your last change was not saved because this trip is over."
+              ) : (
+                <>
+                  Your last change was not saved. The board shows your plan as it was.{" "}
+                  <button type="button" className="btn secondary" onClick={() => void save(saveFailure.plan)}>
+                    Try again
+                  </button>
+                </>
+              )}
             </p>
           )}
           {workError && (

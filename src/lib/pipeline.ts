@@ -10,6 +10,7 @@
    build is started after it, and what was not reached waits for the next run. */
 
 import type { Corridor } from "./corridor";
+import { OsmError } from "./osm";
 import { refreshListings, type ListingsDoc, type RefreshReport } from "./refresh";
 import type { Ask, SourceList } from "./sources";
 import { activeTrips, isActive, type Trip } from "./trip";
@@ -38,6 +39,8 @@ export type TripRun = {
   listings?: RefreshReport;
   /** Which stage failed and with what code, never the details. */
   error?: string;
+  /** The end of the trip the map could not find, when that is why the corridor failed. */
+  place?: "from" | "to";
 };
 
 const codeOf = (e: unknown) => (typeof e === "object" && e !== null && "code" in e ? String((e as { code: unknown }).code) : "error");
@@ -54,7 +57,8 @@ async function runTrip(trip: Trip, deps: PipelineDeps): Promise<TripRun> {
       await deps.setDoc(`corridors/${trip.id}`, corridor);
       run.corridor = "built";
     } catch (e) {
-      return { ...run, corridor: "failed", sources: "skipped", error: `corridor: ${codeOf(e)}` };
+      const place = e instanceof OsmError ? e.place : undefined;
+      return { ...run, corridor: "failed", sources: "skipped", error: `corridor: ${codeOf(e)}`, ...(place ? { place } : {}) };
     }
   }
 
