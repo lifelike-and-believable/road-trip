@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, stopSummaries, type Pick } from "../lib/board";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, placesOf, stopSummaries, type Pick } from "../lib/board";
 import type { Category, Listing } from "../lib/listing";
 import { CATEGORY_LABELS, categoriesIn, filterDays, withoutHidden, type Filters } from "../lib/filters";
 import { dateRangeLabel, dayLabel, dayParts } from "../lib/format";
@@ -41,6 +41,8 @@ export function BoardScreen() {
   // A day the traveller has opened or folded by hand; a day that is already past starts folded.
   const [folds, setFolds] = useState<Record<string, boolean>>({});
   const [showHidden, setShowHidden] = useState(false);
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
+  const mapBlock = useRef<HTMLDivElement>(null);
   // The plan's text, shown for the traveller to copy by hand when the browser would not let it be copied.
   const [copyText, setCopyText] = useState<string | null>(null);
   const { toast, show } = useToast();
@@ -83,6 +85,7 @@ export function BoardScreen() {
     for (const [stop, entry] of Object.entries(data?.listings?.stops ?? {})) for (const listing of entry.listings) m.set(listing.id, { listing, stop });
     return m;
   }, [data]);
+  const places = useMemo(() => placesOf(shown, plan.picks), [shown, plan.picks]);
   const stops = useMemo(
     () => (data?.corridor ? stopSummaries(data.corridor, visibleDays, plan.picks, byId) : []),
     [data, visibleDays, plan.picks, byId],
@@ -131,6 +134,20 @@ export function BoardScreen() {
       show("Copy failed. Select the text below.");
     }
   }
+  const calm = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const showOnMap = (listingId: string) => {
+    setFocus((f) => ({ id: listingId, n: (f?.n ?? 0) + 1 }));
+    mapBlock.current?.scrollIntoView({ block: "nearest", behavior: calm() ? "auto" : "smooth" });
+  };
+  // A pin was chosen on the map: take the traveller to its card and mark it for a moment.
+  const showCard = (listingId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-listing="${listingId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: calm() ? "auto" : "smooth" });
+    el.focus({ preventScroll: true });
+    el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 1600);
+  };
   const clearMissing = () => void save({ ...plan, picks: plan.picks.filter((p) => !itinerary.missing.includes(p.id)) });
 
   async function build(what: "route" | "sources") {
@@ -293,8 +310,16 @@ export function BoardScreen() {
                 What is on along the road
               </h2>
               {(stops.length > 0 || corridor.line) && (
-                <div className="mapblock">
-                  <RouteMap corridor={corridor} stops={stops} selected={filters.stop ?? null} onSelect={toggleStop} />
+                <div className="mapblock" ref={mapBlock}>
+                  <RouteMap
+                    corridor={corridor}
+                    stops={stops}
+                    selected={filters.stop ?? null}
+                    onSelect={toggleStop}
+                    places={places}
+                    focus={focus}
+                    onPlace={showCard}
+                  />
                   {stops.length > 0 && (
                     <div className="stops" role="group" aria-label="Stops along the road">
                       {stops.map((s) => (
@@ -326,6 +351,7 @@ export function BoardScreen() {
                     onStar={() => toggleStar(o.id)}
                     onHide={() => hide(o.id)}
                     onUnhide={() => unhide(o.id)}
+                    onMap={() => showOnMap(o.id)}
                   />
                 );
                 return (

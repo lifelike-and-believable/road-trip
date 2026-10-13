@@ -10,6 +10,7 @@
    trusted: https links only, real instants, bounded lengths, known kinds. */
 
 import { createHash } from "node:crypto";
+import { haversineKm, type LonLat } from "./geo";
 import { cleanUrl, jsonObjectIn } from "./sources";
 import { parseInstant } from "./trip";
 
@@ -33,6 +34,9 @@ export type Listing = {
   /** The page it was read from. */
   source: string;
   notes?: string;
+  /** Where the place is, for the map. Both or neither; left out when the reply gave none that checked out. */
+  lat?: number;
+  lon?: number;
 };
 
 export type Window = { from: string; until: string };
@@ -43,6 +47,8 @@ export const PASS_SLACK_MIN = 180;
 
 const CATEGORIES: Category[] = ["music", "theatre", "museum", "festival", "sports", "food", "outdoors", "family", "other"];
 const COSTS: Cost[] = ["free", "ticketed", "unknown"];
+/** A listing's coordinates are kept only within this distance of the stop it is listed under. A stop is a point on the road, and a venue can sit well off it. */
+export const MAX_LISTING_KM = 40;
 const MAX_PER_STOP = 40;
 const MAX_TEXT = 120;
 const MAX_NOTES = 300;
@@ -94,6 +100,17 @@ function parseSchedule(raw: unknown): Schedule | null {
   return null;
 }
 
+const round5 = (n: number) => Math.round(n * 1e5) / 1e5;
+
+/** The place's own latitude and longitude, if the reply gave both as real numbers on the globe and, when the stop's position is known, near it. (0, 0) is where a missing position usually ends up, so it is refused. */
+function parseCoords(r: Record<string, unknown>, at?: LonLat): { lat: number; lon: number } | null {
+  const { lat, lon } = r;
+  if (typeof lat !== "number" || typeof lon !== "number" || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180 || (lat === 0 && lon === 0)) return null;
+  if (at && haversineKm(at, [lon, lat]) > MAX_LISTING_KM) return null;
+  return { lat: round5(lat), lon: round5(lon) };
+}
+
 /** A flexible listing's id leaves out its hours, which change from week to week. */
 function idOf(stop: string, title: string, schedule: Schedule): string {
   const when = schedule.kind === "fixed" ? schedule.start : "flexible";
@@ -101,7 +118,7 @@ function idOf(stop: string, title: string, schedule: Schedule): string {
 }
 
 /** Validate a reply for one stop. Whatever does not check out is dropped, not repaired. */
-export function parseListings(replyText: string, stop: string): Listing[] {
+export function parseListings(replyText: string, stop: string, at?: LonLat): Listing[] {
   const data = jsonObjectIn(replyText);
   if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
   const items = (data as { listings?: unknown }).listings;
@@ -133,6 +150,8 @@ export function parseListings(replyText: string, stop: string): Listing[] {
     if (url) listing.url = url;
     if (venue) listing.venue = venue;
     if (notes) listing.notes = notes;
+    const where = parseCoords(r, at);
+    if (where) Object.assign(listing, where);
     if (!out.has(listing.id)) out.set(listing.id, listing);
   }
   return [...out.values()];

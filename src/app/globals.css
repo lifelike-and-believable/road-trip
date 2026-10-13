@@ -923,3 +923,15 @@ h3 {
   flex-wrap: wrap;
   gap: 6px;
 }
+
+.acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+/* A card the traveller was just taken to from the map. An outline, not an animation, so it shows with reduced motion too. */
+.flash {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}

@@ -17,6 +17,8 @@ type Props = {
   onStar: () => void;
   onHide: () => void;
   onUnhide: () => void;
+  /** Centre the map on this listing. Offered only when the listing has coordinates. */
+  onMap?: () => void;
 };
 
 function host(url: string): string {
@@ -35,7 +37,7 @@ function hours(option: Option, tz?: string): string {
 }
 
 /** A scheduled event is a row with its time at the left; a place that is open is a card. */
-export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick, onStar, onHide, onUnhide }: Props) {
+export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick, onStar, onHide, onUnhide, onMap }: Props) {
   const { listing } = option;
   const style = { "--catc": CATEGORY_COLOR[listing.category] } as CSSProperties;
   const title = listing.url ? (
@@ -89,12 +91,23 @@ export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick
       <span className="sr-only"> {listing.title}</span>
     </button>
   );
+  const mapBtn = !hidden && onMap && listing.lat !== undefined && (
+    <button type="button" className="pickbtn" onClick={onMap} aria-label={`Show ${listing.title} on the map`}>
+      Map
+    </button>
+  );
+  const acts = (add || mapBtn) && (
+    <div className="acts">
+      {add}
+      {mapBtn}
+    </div>
+  );
   const state = `${picked ? " picked" : ""}${hidden ? " is-hidden" : ""}`;
   const hiddenNote = hidden && <p className="ev-note">Hidden from your board.</p>;
 
   if (option.kind === "flexible") {
     return (
-      <article className={`run${state}`} style={style}>
+      <article className={`run${state}`} style={style} data-listing={listing.id} tabIndex={-1}>
         <div className="rhead">
           <h3>{title}</h3>
           <div className="ev-ctl">{controls}</div>
@@ -106,14 +119,14 @@ export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick
         {hiddenNote}
         <div className="rfoot">
           {tags}
-          {add}
+          {acts}
         </div>
       </article>
     );
   }
 
   return (
-    <article className={`ev${state}`} style={style}>
+    <article className={`ev${state}`} style={style} data-listing={listing.id} tabIndex={-1}>
       <div className="ev-when">{localTime(option.start, tz)}</div>
       <div className="ev-body">
         <div className="ev-title">
@@ -125,7 +138,7 @@ export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick
         {notes}
         {source}
         {hiddenNote}
-        {add}
+        {acts}
       </div>
       <div className="ev-ctl">{controls}</div>
     </article>
