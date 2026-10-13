@@ -13,6 +13,9 @@ export function TripForm() {
   const [end, setEnd] = useState("");
   const [roundTrip, setRoundTrip] = useState(false);
   const [stayHours, setStayHours] = useState("");
+  // A round trip's return: after a number of hours at the destination, or at a set time.
+  const [backBy, setBackBy] = useState<"stay" | "time">("stay");
+  const [turnaround, setTurnaround] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +26,9 @@ export function TripForm() {
     const problems: string[] = [];
     if (!startAt) problems.push("Choose a start date and time.");
     if (!endAt) problems.push("Choose an end date and time.");
-    const stayMin = roundTrip && stayHours.trim() ? Math.round(Number(stayHours) * 60) : undefined;
+    const stayMin = roundTrip && backBy === "stay" && stayHours.trim() ? Math.round(Number(stayHours) * 60) : undefined;
+    const turnAt = roundTrip && backBy === "time" ? withOffset(turnaround) : null;
+    if (roundTrip && backBy === "time" && !turnAt) problems.push('Choose a date and time for "Head back at".');
     if (stayMin !== undefined && !(stayMin > 0)) problems.push("Time at the destination must be more than zero.");
     // The server checks these too, but in its own words; here they are named as the form labels them.
     if (startAt && endAt) {
@@ -33,6 +38,8 @@ export function TripForm() {
       else if (back <= Date.now()) problems.push('"Back or arrive by" has already passed.');
       else if (stayMin && stayMin * 60_000 >= back - leave) {
         problems.push('"Time at the destination" must be shorter than the time from "Leave" to "Back or arrive by".');
+      } else if (turnAt && !(Date.parse(turnAt) > leave && Date.parse(turnAt) < back)) {
+        problems.push('"Head back at" must be between "Leave" and "Back or arrive by".');
       }
     }
     if (problems.length) return setErrors(problems);
@@ -46,6 +53,7 @@ export function TripForm() {
       end: endAt,
       roundTrip,
       ...(stayMin ? { stay: stayMin } : {}),
+      ...(turnAt ? { turnaround: turnAt } : {}),
       tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     setBusy(false);
@@ -81,11 +89,29 @@ export function TripForm() {
         <label htmlFor="round">Round trip</label>
       </div>
       {roundTrip && (
-        <div className="field">
-          <label htmlFor="stay">Time at the destination, in hours</label>
-          <input id="stay" aria-describedby="stay-hint" type="number" min="0" step="0.5" inputMode="decimal" value={stayHours} onChange={(e) => setStayHours(e.target.value)} />
-          <span id="stay-hint" className="hint">Leave it empty to turn around at the middle of the trip.</span>
-        </div>
+        <fieldset className="stack backby">
+          <legend>When to head back</legend>
+          <div className="row">
+            <input id="by-stay" type="radio" name="backby" checked={backBy === "stay"} onChange={() => setBackBy("stay")} />
+            <label htmlFor="by-stay">After a number of hours there</label>
+          </div>
+          <div className="row">
+            <input id="by-time" type="radio" name="backby" checked={backBy === "time"} onChange={() => setBackBy("time")} />
+            <label htmlFor="by-time">Head back at a set time</label>
+          </div>
+          {backBy === "stay" ? (
+            <div className="field">
+              <label htmlFor="stay">Time at the destination, in hours</label>
+              <input id="stay" aria-describedby="stay-hint" type="number" min="0" step="any" inputMode="decimal" value={stayHours} onChange={(e) => setStayHours(e.target.value)} />
+              <span id="stay-hint" className="hint">Leave it empty to turn around at the middle of the trip.</span>
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="turnaround">Head back at</label>
+              <input id="turnaround" type="datetime-local" required value={turnaround} onChange={(e) => setTurnaround(e.target.value)} />
+            </div>
+          )}
+        </fieldset>
       )}
       {errors.length > 0 && (
         <div className="alert" role="alert">

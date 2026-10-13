@@ -15,6 +15,8 @@ type Props = {
   locked: boolean;
   onPick: () => void;
   onStar: () => void;
+  /** When the traveller is at the listing's town that day, from the corridor's estimate. */
+  passing: string | null;
   /** Given the Hide button, so the board can move focus on from the card that is leaving. */
   onHide: (from: HTMLElement) => void;
   onUnhide: () => void;
@@ -39,7 +41,7 @@ function hours(option: Option, tz?: string): string {
 }
 
 /** A scheduled event is a row with its time at the left; a place that is open is a card. */
-export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick, onStar, onHide, onUnhide, onMap }: Props) {
+export function OptionCard({ option, tz, passing, picked, starred, hidden, locked, onPick, onStar, onHide, onUnhide, onMap }: Props) {
   // A flexible listing has a card on each day it is open, so the heading's id is the card's own.
   const heading = useId();
   const { listing } = option;
@@ -66,7 +68,12 @@ export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick
       {option.region ? `, ${option.region}` : ""}
     </p>
   );
-  const notes = listing.notes && <p className="ev-note">{listing.notes}</p>;
+  const notes = (
+    <>
+      {passing && <p className="ev-note">{passing}</p>}
+      {listing.notes && <p className="ev-note">{listing.notes}</p>}
+    </>
+  );
   const source = <p className="ev-note">Read from {host(listing.source)}</p>;
   const star = (
     <button type="button" className="starbtn" aria-pressed={starred} aria-label={`Star ${listing.title}`} title="I like this" onClick={onStar}>

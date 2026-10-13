@@ -4,10 +4,10 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { BAND_LABELS, boardDays, buildItinerary, groupDay, instantIn, localDay, localTime, placesOf, stopSummaries, type Pick } from "../lib/board";
+import { BAND_LABELS, boardDays, buildItinerary, groupDay, instantIn, localDay, localTime, passingNote, placesOf, stopSummaries, type Pick } from "../lib/board";
 import type { Category, Listing } from "../lib/listing";
 import { CATEGORY_LABELS, categoriesIn, filterDays, withoutHidden, type Filters } from "../lib/filters";
-import { dateRangeLabel, dayLabel, dayParts } from "../lib/format";
+import { dateRangeLabel, dayLabel, dayParts, durationLabel, statusLabel, zoneName } from "../lib/format";
 import { browserStorage, readFolds, writeFolds, type Folds } from "../lib/folds";
 import { planText } from "../lib/plan-text";
 import { describePrep } from "../lib/prep";
@@ -66,12 +66,14 @@ export function BoardScreen() {
   const drawerToggle = useRef<HTMLButtonElement>(null);
   const hiddenChip = useRef<HTMLButtonElement>(null);
   // Where focus goes once the next render has taken away the control that had it.
-  const focusAfter = useRef<HTMLElement | "hidden-chip" | "drawer-toggle" | null>(null);
+  const focusAfter = useRef<HTMLElement | "hidden-chip" | "drawer-toggle" | "copy-box" | null>(null);
+  const copyBox = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const target = focusAfter.current;
     if (!target) return;
     focusAfter.current = null;
-    (target === "hidden-chip" ? hiddenChip.current : target === "drawer-toggle" ? drawerToggle.current : target)?.focus();
+    const named = { "hidden-chip": hiddenChip.current, "drawer-toggle": drawerToggle.current, "copy-box": copyBox.current };
+    (typeof target === "string" ? named[target] : target)?.focus();
   });
   const [showHidden, setShowHidden] = useState(false);
   const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
@@ -279,7 +281,10 @@ export function BoardScreen() {
       setCopyText(null);
       show("Plan copied");
     } catch {
+      // The text goes in the plan, which may be closed, so it opens and the text is ready to select.
       setCopyText(text);
+      setPlanOpen(true);
+      focusAfter.current = "copy-box";
       show("Copy failed. Select the text below.");
     }
   }
@@ -290,8 +295,16 @@ export function BoardScreen() {
   };
   // A pin was chosen on the map: take the traveller to its card and mark it for a moment.
   const showCard = (listingId: string) => {
-    const el = document.querySelector<HTMLElement>(`[data-listing="${listingId}"]`);
+    const all = [...document.querySelectorAll<HTMLElement>(`[data-listing="${listingId}"]`)];
+    const el = all.find((c) => !c.closest(".day.is-folded")) ?? all[0];
     if (!el) return;
+    // Its only card is in a folded day: open the day, and focus the card once it shows.
+    const day = el.closest<HTMLElement>(".day.is-folded")?.dataset.day;
+    if (day) {
+      toggleFold(day, true);
+      focusAfter.current = el;
+      return;
+    }
     el.scrollIntoView({ block: "center", behavior: calm() ? "auto" : "smooth" });
     el.focus({ preventScroll: true });
     el.classList.add("flash");
@@ -328,8 +341,19 @@ export function BoardScreen() {
         <p className="alert" role="alert">
           {load.status === 401 ? "You are signed out." : load.status === 404 ? "There is no such trip." : load.message}
         </p>
-        <p>
-          <Link href="/">Back to your trips</Link>
+        <p className="row">
+          {load.status === 401 ? (
+            <Link href="/">Sign in again</Link>
+          ) : (
+            <>
+              {load.status !== 404 && (
+                <button type="button" className="btn" onClick={() => void call<BoardData>(`/api/trips/${id}/board`).then(apply)}>
+                  Try again
+                </button>
+              )}
+              <Link href="/">Back to your trips</Link>
+            </>
+          )}
         </p>
       </main>
     );
@@ -363,7 +387,7 @@ export function BoardScreen() {
             </h1>
             <p className="dateline">
               {dateRangeLabel(localDay(trip.start, tz), localDay(trip.end, tz))} · {trip.roundTrip ? "Round trip" : "One way"} ·{" "}
-              <span className="badge">{trip.status}</span>
+              <span className="badge">{statusLabel(trip.status)}</span>
             </p>
             <div className="trip-actions">
               <DeleteTrip tripId={trip.id} name={`${trip.from.label} to ${trip.to.label}`} label="Delete this trip" onDeleted={() => router.push("/")} />
@@ -373,7 +397,7 @@ export function BoardScreen() {
             <div className="stamp">
               Listings last read {dayLabel(localDay(listings.updatedAt, tz))}, {localTime(listings.updatedAt, tz)}
               <br />
-              Times are in {tz ?? "UTC"}
+              Times are in {zoneName(tz, trip.start)}
             </div>
           )}
         </div>
@@ -381,6 +405,15 @@ export function BoardScreen() {
       <main className={`shell${corridor ? " has-drawer" : ""}`}>
         <div className="stack">
           {locked && <p className="note">This trip is over. The board is read-only.</p>}
+          {corridor?.legs
+            .filter((l) => !l.fits)
+            .map((l) => (
+              <p key={l.id} className="note">
+                {l.id === "back"
+                  ? `The drive back takes about ${durationLabel(l.driveMinutes)}, longer than the time you gave for it, so the times on the way back may not work.`
+                  : `The drive there takes about ${durationLabel(l.driveMinutes)}, longer than the time you gave for it, so the times on the way may not work.`}
+              </p>
+            ))}
           {saveFailure && (
             <p className="alert" role="alert">
               {saveFailure.status === 401 ? (
@@ -479,6 +512,7 @@ export function BoardScreen() {
                   )}
                 </div>
               )}
+              {found > 0 && <p className="small muted">{corridor.sources.timing}</p>}
               {found === 0 && sources && listings && <p className="note">Nothing found yet for the times you will be at each place.</p>}
               {found > 0 && total === 0 && <p className="note">Everything found is hidden. Use the hidden chip above to bring entries back.</p>}
               {total > 0 && count === 0 && <p className="note">Nothing matches these filters.</p>}
@@ -492,6 +526,7 @@ export function BoardScreen() {
                     key={`${d.day}:${o.id}`}
                     option={o}
                     tz={tz}
+                    passing={passingNote(corridor, o.stop, d.day, tz)}
                     picked={plan.picks.some((p) => p.id === o.id)}
                     starred={starredSet.has(o.id)}
                     hidden={hiddenSet.has(o.id)}
@@ -504,7 +539,7 @@ export function BoardScreen() {
                   />
                 );
                 return (
-                  <section key={d.day} className={`day${folded ? " is-folded" : ""}`}>
+                  <section key={d.day} data-day={d.day} className={`day${folded ? " is-folded" : ""}`}>
                     <button
                       type="button"
                       className="day-head"
@@ -593,7 +628,7 @@ export function BoardScreen() {
               onClearMissing={clearMissing}
             />
             {copyText !== null && (
-              <textarea className="copybox" readOnly value={copyText} aria-label="The plan as text, to copy" onFocus={(e) => e.currentTarget.select()} />
+              <textarea className="copybox" ref={copyBox} readOnly value={copyText} aria-label="The plan as text, to copy" onFocus={(e) => e.currentTarget.select()} />
             )}
           </div>
         </section>
