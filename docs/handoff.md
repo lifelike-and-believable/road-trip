@@ -74,7 +74,6 @@ Tokens: the passcode cookie for people; `REFRESH_SECRET` and `CRON_SECRET` (same
 
 ## Not yet built
 
-- Choosing a time for a flexible pick (the plan format already has `at`).
 - The open questions in `PLAN.md`: cost per trip, Sonnet against Opus on this work, aligning record names with the Montreal board.
 
 ## Working conventions that bit this session

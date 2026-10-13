@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, placesOf, stopSummaries, type Pick } from "../lib/board";
+import { BAND_LABELS, boardDays, buildItinerary, groupDay, instantIn, localDay, localTime, placesOf, stopSummaries, type Pick } from "../lib/board";
 import type { Category, Listing } from "../lib/listing";
 import { CATEGORY_LABELS, categoriesIn, filterDays, withoutHidden, type Filters } from "../lib/filters";
 import { dateRangeLabel, dayLabel, dayParts } from "../lib/format";
@@ -127,8 +127,8 @@ export function BoardScreen() {
     [data, visibleDays, plan.picks, byId],
   );
   const itinerary = useMemo(
-    () => (data?.corridor ? buildItinerary(plan.picks, byId, data.corridor) : { items: [], gaps: [], missing: [] }),
-    [plan.picks, byId, data],
+    () => (data?.corridor ? buildItinerary(plan.picks, byId, data.corridor, tz) : { items: [], gaps: [], missing: [] }),
+    [plan.picks, byId, data, tz],
   );
 
   const prepView = useMemo(
@@ -179,10 +179,23 @@ export function BoardScreen() {
     sending.current = false;
   }
 
-  const togglePick = (listingId: string) => {
+  // A flexible pick carries the day of the card it came from, so the itinerary keeps it on that day.
+  const togglePick = (listingId: string, day?: string) => {
     const on = plan.picks.some((p) => p.id === listingId);
-    void save({ ...plan, picks: on ? plan.picks.filter((p) => p.id !== listingId) : [...plan.picks, { id: listingId }] });
+    const added: Pick = day ? { id: listingId, day } : { id: listingId };
+    void save({ ...plan, picks: on ? plan.picks.filter((p) => p.id !== listingId) : [...plan.picks, added] });
     show(on ? "Removed from your plan" : "Added to your plan");
+  };
+  // A time set in the itinerary is read on the pick's day in the trip's zone; an empty one goes back to the suggested time.
+  const setPickTime = (listingId: string, day: string, time: string) => {
+    const at = time ? instantIn(day, time, tz) : null;
+    if (time && !at) return show("That time does not exist that day");
+    const picks = plan.picks.map((p) => {
+      if (p.id !== listingId) return p;
+      const kept: Pick = p.day ? { id: p.id, day: p.day } : { id: p.id };
+      return at ? { ...kept, at } : kept;
+    });
+    void save({ ...plan, picks });
   };
   const toggleStar = (listingId: string) =>
     void save({ ...plan, starred: starredSet.has(listingId) ? plan.starred.filter((s) => s !== listingId) : [...plan.starred, listingId] });
@@ -431,7 +444,7 @@ export function BoardScreen() {
                     starred={starredSet.has(o.id)}
                     hidden={hiddenSet.has(o.id)}
                     locked={locked}
-                    onPick={() => togglePick(o.id)}
+                    onPick={() => togglePick(o.id, o.kind === "flexible" ? d.day : undefined)}
                     onStar={() => toggleStar(o.id)}
                     onHide={() => hide(o.id)}
                     onUnhide={() => unhide(o.id)}
@@ -523,7 +536,15 @@ export function BoardScreen() {
             </div>
           </div>
           <div id="plan-body" className="drawer-body" hidden={!planOpen}>
-            <ItineraryView itinerary={itinerary} tz={tz} routing={corridor.sources.routing} locked={locked} onRemove={togglePick} onClearMissing={clearMissing} />
+            <ItineraryView
+              itinerary={itinerary}
+              tz={tz}
+              routing={corridor.sources.routing}
+              locked={locked}
+              onRemove={(id) => togglePick(id)}
+              onSetTime={setPickTime}
+              onClearMissing={clearMissing}
+            />
             {copyText !== null && (
               <textarea className="copybox" readOnly value={copyText} aria-label="The plan as text, to copy" onFocus={(e) => e.currentTarget.select()} />
             )}
