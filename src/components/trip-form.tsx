@@ -25,6 +25,16 @@ export function TripForm() {
     if (!endAt) problems.push("Choose an end date and time.");
     const stayMin = roundTrip && stayHours.trim() ? Math.round(Number(stayHours) * 60) : undefined;
     if (stayMin !== undefined && !(stayMin > 0)) problems.push("Time at the destination must be more than zero.");
+    // The server checks these too, but in its own words; here they are named as the form labels them.
+    if (startAt && endAt) {
+      const leave = Date.parse(startAt);
+      const back = Date.parse(endAt);
+      if (back <= leave) problems.push('"Back or arrive by" must be after "Leave".');
+      else if (back <= Date.now()) problems.push('"Back or arrive by" has already passed.');
+      else if (stayMin && stayMin * 60_000 >= back - leave) {
+        problems.push('"Time at the destination" must be shorter than the time from "Leave" to "Back or arrive by".');
+      }
+    }
     if (problems.length) return setErrors(problems);
 
     setBusy(true);
@@ -40,7 +50,9 @@ export function TripForm() {
     });
     setBusy(false);
     if (r.ok) router.push(`/trips/${r.value.id}`);
-    else setErrors([r.message]);
+    else if (r.status === 401) setErrors(["You have been signed out. Reload the page to sign in again."]);
+    else if (r.status === 0) setErrors([r.message]);
+    else setErrors(["The trip could not be made. Check the places and times, then try again."]);
   }
 
   return (
