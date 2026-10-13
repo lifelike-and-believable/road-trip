@@ -1,0 +1,297 @@
+/* The trip board's logic: what is on each day, and the itinerary built from the
+   traveller's picks.
+
+   Plain functions with no Node imports, so the board can run them in the
+   browser as picks change. Types are imported only as types for the same reason.
+
+   Like the Montreal board, it says only what it knows. A drive between two picks
+   is shown only when the corridor has one, from the routing service's own
+   duration for the leg, and is labelled as an estimate without traffic. Where two
+   picks are on different legs of a round trip, a stay lies between them and
+   nothing is said about driving. */
+
+import type { Corridor, LegCorridor, Stop } from "./corridor";
+import type { Listing } from "./listing";
+import type { ListingsDoc } from "./refresh";
+
+/** The same three hours as PASS_SLACK_MIN in listing.ts, which this file cannot import (it needs Node). A test keeps them equal. */
+export const SLACK_MIN = 180;
+
+const MINUTE_MS = 60_000;
+
+export type Pick = { id: string; /** When a flexible pick is to start, if the traveller chose a time. */ at?: string };
+
+export function localDay(iso: string, tz?: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(
+    new Date(iso),
+  );
+}
+
+export function localTime(iso: string, tz?: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", hour: "numeric", minute: "2-digit", hour12: true }).format(
+    new Date(iso),
+  );
+}
+
+type Visit = { leg: LegCorridor; stop: Stop; from: number; until: number };
+
+function visitsOf(corridor: Corridor, name: string): Visit[] {
+  const out: Visit[] = [];
+  for (const leg of corridor.legs) {
+    for (const stop of leg.stops) {
+      if (stop.name === name) out.push({ leg, stop, from: Date.parse(stop.from), until: Date.parse(stop.until) });
+    }
+  }
+  return out.sort((a, b) => a.from - b.from);
+}
+
+/** Is any part of [begin, end] within the slack of a time the traveller is at the stop? */
+function near(visits: Visit[], begin: number, end: number): boolean {
+  const slack = SLACK_MIN * MINUTE_MS;
+  return visits.some((v) => begin <= v.until + slack && end >= v.from - slack);
+}
+
+export type Option = {
+  /** The listing's id. A flexible listing is open on several days and appears once for each, with the same id. */
+  id: string;
+  listing: Listing;
+  stop: string;
+  region?: string;
+  kind: "fixed" | "flexible";
+  day: string;
+  /** A fixed listing's start, or a flexible listing's opening time on this day. */
+  start: string;
+  /** A fixed listing's end if its length is known, or a flexible listing's closing time on this day. */
+  end: string | null;
+};
+
+export type Day = { day: string; options: Option[] };
+
+/** Everything worth stopping for, by the day it is on, in time order. */
+export function boardDays(corridor: Corridor, listings: ListingsDoc | null, tz?: string): Day[] {
+  const byDay = new Map<string, Option[]>();
+  const add = (o: Option) => {
+    const list = byDay.get(o.day) ?? [];
+    list.push(o);
+    byDay.set(o.day, list);
+  };
+
+  for (const [name, entry] of Object.entries(listings?.stops ?? {})) {
+    const visits = visitsOf(corridor, name);
+    const region = visits[0]?.stop.region;
+    for (const listing of entry.listings) {
+      const base = { id: listing.id, listing, stop: name, region };
+      if (listing.schedule.kind === "fixed") {
+        const begin = Date.parse(listing.schedule.start);
+        const end = listing.schedule.durationMin ? begin + listing.schedule.durationMin * MINUTE_MS : begin;
+        if (!near(visits, begin, end)) continue;
+        add({
+          ...base, kind: "fixed", day: localDay(listing.schedule.start, tz), start: listing.schedule.start,
+          end: listing.schedule.durationMin ? new Date(end).toISOString() : null,
+        });
+      } else {
+        for (const h of listing.schedule.hours) {
+          if (!near(visits, Date.parse(h.opens), Date.parse(h.closes))) continue;
+          add({ ...base, kind: "flexible", day: localDay(h.opens, tz), start: h.opens, end: h.closes });
+        }
+      }
+    }
+  }
+
+  return [...byDay.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, options]) => ({
+      day,
+      options: options.sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.listing.title.localeCompare(b.listing.title)),
+    }));
+}
+
+export type Placement = "fixed" | "chosen" | "auto" | "unplaceable";
+
+export type ItineraryItem = {
+  id: string;
+  title: string;
+  stop: string;
+  kind: "fixed" | "flexible";
+  placed: Placement;
+  startAt: string | null;
+  /** Null when the length is not known. */
+  endAt: string | null;
+  endKnown: boolean;
+  warning?: "outside-hours";
+};
+
+export type GapState = "ok" | "tight" | "overlap" | "back-to-back";
+
+export type Gap = {
+  /** From the end of one pick to the start of the next; negative when they overlap. */
+  minutes: number;
+  /** Estimated drive between the two stops, or null when the corridor cannot say. */
+  travelMin: number | null;
+  /** What supplied the drive time. */
+  travelSource: string | null;
+  state: GapState;
+  /** The first pick has no known length, so the gap is measured from its start. */
+  fromStartOnly: boolean;
+};
+
+export type Itinerary = {
+  /** Placed picks in time order, then any that could not be placed. */
+  items: ItineraryItem[];
+  /** gaps[i] is between items[i] and items[i + 1], for the placed items only. */
+  gaps: Gap[];
+  /** Picked listings that are no longer listed. */
+  missing: string[];
+};
+
+type Travel = { min: number; source: string };
+
+function legFor(corridor: Corridor, name: string, atMs: number): { leg: LegCorridor; stop: Stop } | null {
+  let best: { leg: LegCorridor; stop: Stop } | null = null;
+  let bestDistance = Infinity;
+  for (const v of visitsOf(corridor, name)) {
+    const distance = atMs < v.from ? v.from - atMs : atMs > v.until ? atMs - v.until : 0;
+    if (distance < bestDistance) {
+      best = { leg: v.leg, stop: v.stop };
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+/** The route's own duration for the distance between two stops on one leg. Null across legs, where a stay lies between. */
+function travel(corridor: Corridor, a: { stop: string; at: number }, b: { stop: string; at: number }): Travel | null {
+  const from = legFor(corridor, a.stop, a.at);
+  const to = legFor(corridor, b.stop, b.at);
+  if (!from || !to || from.leg !== to.leg || from.leg.distanceKm <= 0) return null;
+  const km = Math.abs(from.stop.km - to.stop.km);
+  return { min: Math.round((km * from.leg.driveMinutes) / from.leg.distanceKm), source: `${corridor.sources.routing}, estimated without traffic` };
+}
+
+type Slot = {
+  id: string;
+  title: string;
+  stop: string;
+  kind: "fixed" | "flexible";
+  placed: Placement;
+  start: number;
+  end: number | null;
+  warning?: "outside-hours";
+};
+
+const iso = (ms: number) => new Date(ms).toISOString();
+
+export function buildItinerary(
+  picks: Pick[],
+  byId: Map<string, { listing: Listing; stop: string }>,
+  corridor: Corridor,
+): Itinerary {
+  const missing: string[] = [];
+  const seen = new Set<string>();
+  const anchored: Slot[] = [];
+  const toPlace: Array<{ pick: Pick; listing: Listing; stop: string }> = [];
+
+  for (const pick of picks) {
+    if (seen.has(pick.id)) continue;
+    seen.add(pick.id);
+    const found = byId.get(pick.id);
+    if (!found) {
+      missing.push(pick.id);
+      continue;
+    }
+    const { listing, stop } = found;
+    const s = listing.schedule;
+    if (s.kind === "fixed") {
+      const start = Date.parse(s.start);
+      anchored.push({
+        id: listing.id, title: listing.title, stop, kind: "fixed", placed: "fixed", start,
+        end: s.durationMin ? start + s.durationMin * MINUTE_MS : null,
+      });
+    } else if (pick.at) {
+      const start = Date.parse(pick.at);
+      const length = (s.typicalMin ?? 0) * MINUTE_MS;
+      const inside = s.hours.some((h) => Date.parse(h.opens) <= start && start + length <= Date.parse(h.closes));
+      anchored.push({
+        id: listing.id, title: listing.title, stop, kind: "flexible", placed: "chosen", start,
+        end: s.typicalMin ? start + length : null, ...(inside ? {} : { warning: "outside-hours" as const }),
+      });
+    } else {
+      toPlace.push({ pick, listing, stop });
+    }
+  }
+
+  const placed = [...anchored];
+  const unplaceable: Slot[] = [];
+
+  // Flexible picks with no chosen time, the one that opens soonest first.
+  const openingOf = (l: Listing) => (l.schedule.kind === "flexible" ? Math.min(...l.schedule.hours.map((h) => Date.parse(h.opens))) : 0);
+  toPlace.sort((a, b) => openingOf(a.listing) - openingOf(b.listing) || a.listing.id.localeCompare(b.listing.id));
+
+  const slack = SLACK_MIN * MINUTE_MS;
+  for (const { listing, stop } of toPlace) {
+    if (listing.schedule.kind !== "flexible") continue;
+    const length = (listing.schedule.typicalMin ?? 0) * MINUTE_MS;
+    const visits = visitsOf(corridor, stop);
+    const hours = [...listing.schedule.hours].sort((a, b) => Date.parse(a.opens) - Date.parse(b.opens));
+    let start: number | null = null;
+
+    search: for (const h of hours) {
+      const opens = Date.parse(h.opens);
+      const closes = Date.parse(h.closes);
+      for (const v of visits) {
+        const earliest = Math.max(opens, v.from - slack);
+        const latest = Math.min(closes - length, v.until + slack);
+        if (earliest > latest) continue;
+
+        // Move the start along until it clears every pick already placed, drive included.
+        let s = earliest;
+        for (let pass = 0; pass <= placed.length; pass++) {
+          let moved = false;
+          for (const p of placed) {
+            const pEnd = p.end ?? p.start;
+            const into = (travel(corridor, { stop: p.stop, at: pEnd }, { stop, at: s })?.min ?? 0) * MINUTE_MS;
+            const out = (travel(corridor, { stop, at: s }, { stop: p.stop, at: p.start })?.min ?? 0) * MINUTE_MS;
+            const clear = s >= pEnd + into || s + length + out <= p.start;
+            if (!clear) {
+              s = pEnd + into;
+              moved = true;
+            }
+          }
+          if (!moved) break;
+        }
+        if (s <= latest) {
+          start = s;
+          break search;
+        }
+      }
+    }
+
+    const slot: Slot = {
+      id: listing.id, title: listing.title, stop, kind: "flexible", placed: start === null ? "unplaceable" : "auto",
+      start: start ?? 0, end: start !== null && listing.schedule.typicalMin ? start + length : null,
+    };
+    (start === null ? unplaceable : placed).push(slot);
+  }
+
+  placed.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+
+  const toItem = (s: Slot): ItineraryItem => ({
+    id: s.id, title: s.title, stop: s.stop, kind: s.kind, placed: s.placed,
+    startAt: s.placed === "unplaceable" ? null : iso(s.start),
+    endAt: s.placed === "unplaceable" || s.end === null ? null : iso(s.end),
+    endKnown: s.placed !== "unplaceable" && s.end !== null,
+    ...(s.warning ? { warning: s.warning } : {}),
+  });
+
+  const gaps: Gap[] = [];
+  for (let i = 0; i + 1 < placed.length; i++) {
+    const a = placed[i];
+    const b = placed[i + 1];
+    const minutes = Math.round((b.start - (a.end ?? a.start)) / MINUTE_MS);
+    const t = travel(corridor, { stop: a.stop, at: a.end ?? a.start }, { stop: b.stop, at: b.start });
+    const state: GapState = minutes < 0 ? "overlap" : minutes === 0 ? "back-to-back" : t && minutes < t.min ? "tight" : "ok";
+    gaps.push({ minutes, travelMin: t?.min ?? null, travelSource: t?.source ?? null, state, fromStartOnly: a.end === null });
+  }
+
+  return { items: [...placed, ...unplaceable].map(toItem), gaps, missing };
+}
