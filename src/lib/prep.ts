@@ -12,6 +12,8 @@ export type PrepDoc = {
   corridor?: "existing" | "built" | "failed";
   sources?: "existing" | "built" | "failed" | "skipped";
   routine?: PrepRoutine;
+  /** Why the route failed, as a code, and which end of the trip it was about when that is known. */
+  problem?: { code: string; place?: "from" | "to" };
 };
 
 export type StepState = "done" | "working" | "waiting" | "failed";
@@ -34,9 +36,22 @@ export function describePrep(prep: PrepDoc | null, have: Have, now: Date) {
   const state = stale ? "failed" : (prep?.state ?? null);
 
   const route: Step = { key: "route", label: "Work out the route", state: "waiting" };
+  // A name the map does not know, or no road between the two, fails the same way every time.
+  let lasting = false;
   if (have.corridor) route.state = "done";
   else if (state === "working") route.state = "working";
-  else if (state === "failed" || state === "done") route.state = "failed";
+  else if (state === "failed" || state === "done") {
+    route.state = "failed";
+    const problem = prep?.problem;
+    if (problem?.code === "not_found") {
+      const field = problem.place === "from" ? '"From"' : problem.place === "to" ? '"To"' : "One of the places";
+      route.note = `${field} could not be found on the map. Delete this trip and make it again with the name of a nearby town.`;
+      lasting = true;
+    } else if (problem?.code === "no_route") {
+      route.note = "There is no driving route between the two places. Delete this trip and make it again with places joined by road.";
+      lasting = true;
+    }
+  }
 
   const sources: Step = { key: "sources", label: "Find pages that list things to do", state: "waiting" };
   if (have.sources) sources.state = "done";
@@ -79,7 +94,7 @@ export function describePrep(prep: PrepDoc | null, have: Have, now: Date) {
   }
 
   const steps: Step[] = [route, sources, places];
-  const canRetry = steps.some((s) => s.state === "failed");
+  const canRetry = !lasting && steps.some((s) => s.state === "failed");
   const needsStart = prep === null && !(have.corridor && have.sources);
   const running = needsStart || state === "working" || steps.some((s) => s.state === "working");
   return { steps, canRetry, needsStart, settled: !running };

@@ -99,6 +99,25 @@ describe("describePrep", () => {
     expect(r.settled).toBe(true);
   });
 
+  it("says which place could not be found, and offers no Try again that would fail the same way", () => {
+    const r = describePrep(prep({ state: "failed", corridor: "failed", problem: { code: "not_found", place: "to" } }), have, NOW);
+    expect(r.steps[0].state).toBe("failed");
+    expect(r.steps[0].note).toMatch(/"To".*could not be found/);
+    expect(r.steps[0].note).toMatch(/Delete this trip/);
+    expect(r.canRetry).toBe(false);
+  });
+
+  it("says when there is no road between the places", () => {
+    const r = describePrep(prep({ state: "failed", corridor: "failed", problem: { code: "no_route" } }), have, NOW);
+    expect(r.steps[0].note).toMatch(/no driving route/i);
+    expect(r.canRetry).toBe(false);
+  });
+
+  it("still offers Try again when the route failed for a reason that may pass", () => {
+    const r = describePrep(prep({ state: "failed", corridor: "failed", problem: { code: "upstream" } }), have, NOW);
+    expect(r.canRetry).toBe(true);
+  });
+
   it("stops waiting for the routine after a long time and says it is taking longer than usual", () => {
     const r = describePrep(prep({ state: "done", updatedAt: ago(40 * MIN), routine: { fired: true } }), { corridor: true, sources: true, listings: 0 }, NOW);
     expect(r.steps[2].note).toMatch(/longer than usual/);

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Corridor } from "./corridor";
 import { prepareNewTrip } from "./on-create";
+import { OsmError } from "./osm";
 import type { PipelineDeps } from "./pipeline";
 import type { SourceList } from "./sources";
 import type { Trip } from "./trip";
@@ -47,6 +48,12 @@ describe("a new trip", () => {
     const { run, fire } = setup({ buildCorridor: vi.fn(async () => { throw new Error("osrm down"); }) });
     expect((await run()).routine).toEqual({ fired: false, reason: "not_ready" });
     expect(fire).not.toHaveBeenCalled();
+  });
+
+  it("records which place could not be found, so the board can say so", async () => {
+    const { run, docs } = setup({ buildCorridor: vi.fn(async () => { throw new OsmError("not_found", "no place", "to"); }) });
+    await run();
+    expect(docs.get("prep/t1")).toMatchObject({ state: "failed", corridor: "failed", problem: { code: "not_found", place: "to" } });
   });
 
   it("leaves the reading to this server, and does not start the routine, when LISTINGS_BY is cron", async () => {

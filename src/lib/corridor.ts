@@ -7,7 +7,7 @@
    says it is an estimate. */
 
 import { cumulativeKm, pointAtKm, simplifyLine, type LonLat } from "./geo";
-import { driveRoute, geocode, reverseName } from "./osm";
+import { driveRoute, geocode, OsmError, reverseName } from "./osm";
 import { legsOf, type Place, type Trip } from "./trip";
 
 const MIN_SPACING_KM = 50;
@@ -109,16 +109,22 @@ export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = 
     return call();
   };
 
-  const locate = async (place: Place): Promise<Located> => {
+  const locate = async (place: Place, end: "from" | "to"): Promise<Located> => {
     if (place.lat !== undefined && place.lon !== undefined) {
       return { label: place.label, lat: place.lat, lon: place.lon };
     }
-    const hit = await nominatim(() => deps.geocode(place.label));
-    return { label: place.label, lat: hit.lat, lon: hit.lon };
+    try {
+      const hit = await nominatim(() => deps.geocode(place.label));
+      return { label: place.label, lat: hit.lat, lon: hit.lon };
+    } catch (e) {
+      // Said with the end it was for, so the board can tell the traveller which name to change.
+      if (e instanceof OsmError && e.code === "not_found") throw new OsmError("not_found", e.message, end);
+      throw e;
+    }
   };
 
-  const from = await locate(trip.from);
-  const to = await locate(trip.to);
+  const from = await locate(trip.from, "from");
+  const to = await locate(trip.to, "to");
   const route = await deps.driveRoute(from, to);
 
   const cum = cumulativeKm(route.line);

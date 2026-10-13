@@ -41,6 +41,7 @@ export async function prepareNewTrip(trip: Trip, { deps, by, fire }: Options): P
     corridor: result.corridor,
     sources: result.sources,
     routine,
+    ...(run?.corridor === "failed" && run.error ? { problem: { code: run.error.replace(/^corridor: /, ""), ...(run.place ? { place: run.place } : {}) } } : {}),
   };
   await deps.setDoc(`prep/${trip.id}`, doc);
   return result;
