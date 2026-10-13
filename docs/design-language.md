@@ -60,7 +60,7 @@ Labels are small, uppercase and tracked. Content is mixed case. The scale:
 - **Filter bar.** Sticky at the top, translucent (`color-mix` of `--ground` with a 10px blur), pills that wrap and never scroll sideways. A focused element is never hidden behind it: `scroll-padding-top` on `html` leaves room.
 - **Days.** Each day opens with a full-width button: the weekday in the day-title style, the date and the count on the right, a chevron that turns when the day is folded, and a 2px `--ink` rule under it. A day that is already past starts folded.
 - **Inside a day.** Scheduled events are grouped under Morning (to 11:59), Afternoon (from noon), Evening (from 5 p.m.) and Late (from 8:30 p.m.), each with a band label and a count. Places with opening hours have no start time, so they are shown apart, in a group of cards headed "Open today" (the counterpart of Montreal's "Running all weekend").
-- **Plan.** A drawer fixed to the bottom of the screen, as on Montreal: a bar with the count, "Copy plan" and "Clear" (when there are picks) and "Show itinerary" / "Hide itinerary". It starts closed, opens to the itinerary, and Escape closes it. The page keeps room at its end so the bar never covers the last card, and the toast sits above it.
+- **Plan.** A drawer fixed to the bottom of the screen, as on Montreal: a bar with the count, "Copy plan" and "Clear" (when there are picks), "Undo clear" after a Clear and "Show itinerary" / "Hide itinerary". It starts closed, opens to the itinerary, and Escape closes it. The page keeps room at its end so the bar never covers the last card, and the toast sits above it.
 - **Breakpoints** are 460, 560, 700, 720 and 760px.
 
 ## Components
@@ -107,6 +107,7 @@ These are deliberate. Each has a reason.
 | Calendar clashes, "+ Calendar", posters, weather, métro and neighbourhood, "Don't miss", the taste profile | Not carried over | They depend on a calendar, a home city and a single weekend, which a road trip does not have. The drive time between picks takes the place of the neighbourhood and line. |
 | Em dashes in copy | The copy written so far uses commas and colons | Kept as it is. Match Montreal's dashes only if asked. |
 | Button "Unlock", gate title "The Weekend Board" | "Unlock", gate title "Road Trip" | The same words, with the app's own name. |
+| "Clear" empties the plan at once | It still does, then an "Undo clear" button takes its place in the plan bar, with focus, until something new is picked | Clear sits beside Copy plan, and a mis-tap on a phone otherwise loses the whole plan. |
 
 ## Status of Road Trip against this document
 

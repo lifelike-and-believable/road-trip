@@ -61,6 +61,13 @@ export function BoardScreen() {
   const mapBlock = useRef<HTMLDivElement>(null);
   // The plan's text, shown for the traveller to copy by hand when the browser would not let it be copied.
   const [copyText, setCopyText] = useState<string | null>(null);
+  // The picks Clear took away, kept so the plan bar can offer to put them back until something new is picked.
+  const [cleared, setCleared] = useState<Pick[] | null>(null);
+  const undoButton = useRef<HTMLButtonElement>(null);
+  // Clear leaves the page when the plan empties, so focus moves to the button that replaces it.
+  useEffect(() => {
+    if (cleared) undoButton.current?.focus();
+  }, [cleared]);
   const { toast, show } = useToast();
 
   const apply = useCallback((r: Reply<BoardData>) => {
@@ -142,6 +149,7 @@ export function BoardScreen() {
 
   async function save(next: Plan) {
     setPlan(next);
+    if (next.picks.length > 0) setCleared(null);
     const r = await put(`/api/trips/${id}/plan`, next);
     setSaveError(r.ok ? null : r.message);
   }
@@ -165,9 +173,16 @@ export function BoardScreen() {
     show("Back on the board");
   };
   const clearPlan = () => {
+    setCleared(plan.picks);
     void save({ ...plan, picks: [] });
     setCopyText(null);
     show("Plan cleared");
+  };
+  const undoClear = () => {
+    if (!cleared) return;
+    // Anything hidden since stays off the plan, as hiding always takes it off.
+    void save({ ...plan, picks: cleared.filter((p) => !hiddenSet.has(p.id)) });
+    show("Plan put back");
   };
   async function copyPlan(text: string) {
     try {
@@ -234,6 +249,7 @@ export function BoardScreen() {
   const { trip, corridor, sources, listings } = load.data;
   const today = localDay(new Date().toISOString(), tz);
   const total = visibleDays.reduce((n, d) => n + d.options.length, 0);
+  const found = days.reduce((n, d) => n + d.options.length, 0);
   const count = shown.reduce((n, d) => n + d.options.length, 0);
   const filtering = filters.categories.size > 0 || filters.freeOnly || filters.starredOnly || filters.stop !== undefined;
   const toggleStop = (name: string) => setFilters((f) => ({ ...f, stop: f.stop === name ? undefined : name }));
@@ -289,7 +305,7 @@ export function BoardScreen() {
           {preparing && prepView && <PrepPanel steps={prepView.steps} canRetry={prepView.canRetry} retrying={retrying} onRetry={() => void startPrep()} />}
         </div>
 
-        {corridor && total > 0 && (
+        {corridor && found > 0 && (
           <div className="filters" role="group" aria-label="Filters">
             {categories.map((c) => (
               <button
@@ -360,7 +376,8 @@ export function BoardScreen() {
                   )}
                 </div>
               )}
-              {total === 0 && sources && listings && <p className="note">Nothing found yet for the times you will be at each place.</p>}
+              {found === 0 && sources && listings && <p className="note">Nothing found yet for the times you will be at each place.</p>}
+              {found > 0 && total === 0 && <p className="note">Everything found is hidden. Use the hidden chip above to bring entries back.</p>}
               {total > 0 && count === 0 && <p className="note">Nothing matches these filters.</p>}
               <div className="days">
               {shown.map((d) => {
@@ -456,6 +473,11 @@ export function BoardScreen() {
                     </button>
                   )}
                 </>
+              )}
+              {cleared && plan.picks.length === 0 && !locked && (
+                <button type="button" className="btn secondary" ref={undoButton} onClick={undoClear}>
+                  Undo clear
+                </button>
               )}
               <button type="button" className="btn" aria-expanded={planOpen} aria-controls="plan-body" onClick={() => setPlanOpen((o) => !o)}>
                 {planOpen ? "Hide itinerary" : "Show itinerary"}
