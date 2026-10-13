@@ -5,6 +5,7 @@
 
 import type { FireResult } from "./fire-routine";
 import { runAll, type PipelineDeps } from "./pipeline";
+import type { PrepDoc } from "./prep";
 import { isActive, type Trip } from "./trip";
 
 export type NewTripResult = {
@@ -27,5 +28,20 @@ export async function prepareNewTrip(trip: Trip, { deps, by, fire }: Options): P
   const run = runs[0];
   const ready = !!run && run.corridor !== "failed" && (run.sources === "existing" || run.sources === "built");
   const routine: FireResult = by === "cron" ? { fired: false, reason: "cron" } : ready ? await fire(trip.id) : { fired: false, reason: "not_ready" };
-  return { corridor: run?.corridor ?? "failed", sources: run?.sources ?? "skipped", routine };
+  const result: NewTripResult = { corridor: run?.corridor ?? "failed", sources: run?.sources ?? "skipped", routine };
+
+  // The board reads this to show where things stand. It is written last, so a function that stopped early leaves the
+  // "working" record the caller made, which the board treats as failed once it has gone untouched for a while.
+  const started = (await deps.getDoc<PrepDoc>(`prep/${trip.id}`))?.startedAt ?? deps.now().toISOString();
+  const doc: PrepDoc = {
+    tripId: trip.id,
+    state: ready ? "done" : "failed",
+    startedAt: started,
+    updatedAt: deps.now().toISOString(),
+    corridor: result.corridor,
+    sources: result.sources,
+    routine,
+  };
+  await deps.setDoc(`prep/${trip.id}`, doc);
+  return result;
 }

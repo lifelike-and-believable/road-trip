@@ -28,6 +28,7 @@ export async function DELETE(req: Request, ctx: RouteContext<"/api/trips/[id]">)
     await deleteDoc(`sources/${id}`);
     await deleteDoc(`listings/${id}`);
     await deleteDoc(`plans/${id}`);
+    await deleteDoc(`prep/${id}`);
     return Response.json({ ok: true });
   } catch (e) {
     return storeError("trips/id", e);
