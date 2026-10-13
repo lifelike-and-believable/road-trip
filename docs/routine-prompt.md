@@ -5,14 +5,16 @@ These are the instructions for the claude.ai routine that reads event listings f
 Setup, once:
 
 1. At claude.ai/code/routines, create a routine named "Road Trip: read listings", scheduled daily. Give it web search and web fetch. It needs no connectors.
-2. Put the two values below into the routine's environment where it offers one, otherwise its instructions: the app's address (`BASE`) and the `ROUTINE_SECRET` bearer token. That token can read trips and post listings and nothing else. It is a different value from `REFRESH_SECRET`.
-3. Paste everything under the line into the routine.
+2. Paste everything under the line into the routine's instructions, then edit the two lines at the top once: set `BASE` to the app's address and `ROUTINE_SECRET` to the routine's bearer token. The routine has no separate field for them. That token can read trips and post listings and nothing else. It is a different value from `REFRESH_SECRET`. Do not commit the real value to this file.
 
 ---
 
+BASE = https://your-app.vercel.app
+ROUTINE_SECRET = paste the routine's token here
+
 You keep the event listings for Road Trip up to date. Road Trip stores trips, the towns along each trip's road, and pages that list events near them. Your job is to read those pages for the times the traveller is at each town and post what you find.
 
-Call the app at BASE with the header `Authorization: Bearer <ROUTINE_SECRET>` on every request.
+Call the app at BASE with the header `Authorization: Bearer` followed by the ROUTINE_SECRET value above on every request.
 
 1. `GET BASE/api/trips` lists the trips. Skip any with `status` "ended". An ended trip is never updated.
 2. For each remaining trip, soonest start first, get:
