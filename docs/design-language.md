@@ -76,6 +76,7 @@ Labels are small, uppercase and tracked. Content is mixed case. The scale:
 - **Copy plan.** Copies the plan as plain text, a heading per day then a line per pick, with a toast to say so.
 - **Toast.** A small dark bubble above the plan, visible for about 1.6 seconds.
 - **Map (Road Trip only).** The road is a 4 px line in `--accent`, a pin for each town is a circle outlined in `--ink` and filled with `--surface` (filled with `--accent` when a pick on the plan is there, and larger when it is the chosen town). A pin's tooltip is a dark bubble like the toast and says the town and how many listings are near it. Leaflet's controls and attribution take the page's colours, and in dark mode the tiles are darkened with a filter. A listing with coordinates is a small pin in its category's colour, ringed in `--accent` when it is on the plan; choosing it takes the traveller to its card, which is outlined for a moment, and the card's Map button does the reverse. Under the map a row of chips, one per town with its count, does the same from the keyboard. The map never draws a road it does not have.
+- **Delete (Road Trip only).** A small outlined button in `--brick`; it asks in a brick-washed box with a thick left border ("Delete this trip and its plan? This cannot be undone."), a filled brick "Yes, delete it" and a "Keep it" that has focus. Montreal has no trips to delete.
 - **Banners.** A brick box with a thick left border for a problem, a quiet box for a note.
 - **Gate.** A full-screen cover with a short title, one sentence, a passcode field and an "Unlock" button. It shows an error under the field and focuses the field when it opens.
 
@@ -117,6 +118,7 @@ These are deliberate. Each has a reason.
 | Gate | Built |
 | Hide, "Bring back", "Hidden" chip | Built |
 | Copy plan, Clear, toast | Built |
+| Delete a trip, with a question first | Built (Road Trip only) |
 | Map of the route with a row of stops under it | Built (new; Montreal has no map) |
 | Plan as a bottom drawer | Built |
 | Days side by side in columns on wide screens | Built |

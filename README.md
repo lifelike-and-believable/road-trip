@@ -2,7 +2,7 @@
 
 Enter a start and end location, a start and end time, and whether the trip is one way or a round trip. Road Trip lists the events and activities along the road between the two places, in the style of the Montreal Weekend Board.
 
-Status: early. Trips can be created, listed, read and deleted through the API, and a trip stops being active when its end time passes. The route corridor, the event sources and the listings can be built, and a daily job (Vercel Cron) keeps the listings of active trips up to date. The trip board is built: sign in with the passcode, make a trip, and pick from what is on along the road. It is not an installable app yet. [PLAN.md](PLAN.md) sequences the rest.
+Status: early. Trips can be created, listed, read and deleted (through the API, and from the trip list and the board), and a trip stops being active when its end time passes. The route corridor, the event sources and the listings can be built, and a daily job (Vercel Cron) keeps the listings of active trips up to date. The trip board is built: sign in with the passcode, make a trip, and pick from what is on along the road. It is not an installable app yet. [PLAN.md](PLAN.md) sequences the rest.
 
 ## Commands
 

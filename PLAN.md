@@ -20,6 +20,7 @@ One slice per branch and pull request. Update this file when a slice answers an 
 | 5e | Plan drawer and folds | The plan as a bottom drawer as on the Montreal board, the days in columns on wide screens, and fold state kept in the browser. Delivered. | [#20](https://github.com/lifelike-and-believable/road-trip/pull/20) |
 | 5d | Map | Delivered: the route as a line with a pin for each town, a row of stops under it, and the board limited to a town when its pin or button is chosen; Leaflet with OpenStreetMap's tiles, as the owner decided. Then a small pin for each listing that has coordinates, linked to its card both ways. The owner decided the routine supplies the coordinates (latitude and longitude, from the place's own page or a map page for it); the app checks them (on the globe, not 0 and 0, within 40 km of the stop) and drops a pair that fails, keeping the listing. Not yet measured: how often the routine finds coordinates. Montreal has no map, so this is new to both apps. | [#18](https://github.com/lifelike-and-believable/road-trip/pull/18), [#19](https://github.com/lifelike-and-believable/road-trip/pull/19) |
 | 6 | PWA | Installable shell, service worker that never caches `/api`, safe-area handling | |
+| 6c | Delete a trip | A Delete button on each trip in the list and on its board, with a question first. The API had `DELETE /api/trips/<id>` since slice 1 and nothing in the screens used it. | [#24](https://github.com/lifelike-and-believable/road-trip/pull/24) |
 
 ## Decisions and open questions
 
