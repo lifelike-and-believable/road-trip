@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { clockTime, localDay, localTime, type Itinerary } from "../lib/board";
 import { dayLabel, describeGap, durationLabel } from "../lib/format";
 
@@ -7,21 +8,40 @@ type Props = {
   routing: string;
   locked: boolean;
   onRemove: (id: string) => void;
+  /** Called when the last pick is removed from here, so the board can put focus somewhere that stays. */
+  onEmptied: () => void;
   /** Set a flexible pick's start on its day; an empty time goes back to the suggested one. */
   onSetTime: (id: string, day: string, time: string) => void;
   onClearMissing: () => void;
 };
 
 /** The picks in time order with the gap between each. A drive time is the route's own estimate, never invented. */
-export function ItineraryView({ itinerary, tz, routing, locked, onRemove, onSetTime, onClearMissing }: Props) {
+export function ItineraryView({ itinerary, tz, routing, locked, onRemove, onEmptied, onSetTime, onClearMissing }: Props) {
   const { items, gaps, missing } = itinerary;
+  const list = useRef<HTMLOListElement>(null);
+  // Where focus goes once the removed item's button has left the page.
+  const focusAfter = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const target = focusAfter.current;
+    focusAfter.current = null;
+    target?.focus();
+  });
+  // Removing an item moves focus to the next item's Remove button, or the one before, or off the list when it empties.
+  const remove = (id: string, from: HTMLElement) => {
+    const buttons = [...(list.current?.querySelectorAll<HTMLElement>(".xbtn") ?? [])];
+    const at = buttons.indexOf(from);
+    const next = buttons[at + 1] ?? buttons[at - 1] ?? null;
+    if (next) focusAfter.current = next;
+    else onEmptied();
+    onRemove(id);
+  };
   if (items.length === 0 && missing.length === 0) {
     return <p className="note">Add one or two stops from the list and they land here in order, with the time between them.</p>;
   }
   const placedCount = items.filter((i) => i.placed !== "unplaceable").length;
   return (
     <div className="stack">
-      <ol className="itinerary">
+      <ol className="itinerary" ref={list}>
         {items.flatMap((item, i) => {
           const day = item.day ?? (item.startAt ? localDay(item.startAt, tz) : undefined);
           const rows = [
@@ -43,7 +63,7 @@ export function ItineraryView({ itinerary, tz, routing, locked, onRemove, onSetT
                 )}
               </div>
               {!locked && (
-                <button type="button" className="xbtn" aria-label={`Remove ${item.title} from your plan`} onClick={() => onRemove(item.id)}>
+                <button type="button" className="xbtn" aria-label={`Remove ${item.title} from your plan`} onClick={(e) => remove(item.id, e.currentTarget)}>
                   <span aria-hidden="true">×</span>
                 </button>
               )}

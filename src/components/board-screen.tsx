@@ -62,6 +62,17 @@ export function BoardScreen() {
   // A day the traveller has opened or folded by hand; a day that is already past starts folded.
   const [folds, setFolds] = useState<Folds>(() => readFolds(browserStorage(), id));
   const [planOpen, setPlanOpen] = useState(false);
+  const drawer = useRef<HTMLElement>(null);
+  const drawerToggle = useRef<HTMLButtonElement>(null);
+  const hiddenChip = useRef<HTMLButtonElement>(null);
+  // Where focus goes once the next render has taken away the control that had it.
+  const focusAfter = useRef<HTMLElement | "hidden-chip" | "drawer-toggle" | null>(null);
+  useEffect(() => {
+    const target = focusAfter.current;
+    if (!target) return;
+    focusAfter.current = null;
+    (target === "hidden-chip" ? hiddenChip.current : target === "drawer-toggle" ? drawerToggle.current : target)?.focus();
+  });
   const [showHidden, setShowHidden] = useState(false);
   const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
   const mapBlock = useRef<HTMLDivElement>(null);
@@ -140,6 +151,36 @@ export function BoardScreen() {
   );
   const preparing = !!data && !locked && !!prepView && placeCount(data) === 0;
 
+  useEffect(() => {
+    if (data) document.title = `${data.trip.from.label} to ${data.trip.to.label} · Road Trip`;
+  }, [data]);
+
+  // Escape closes the itinerary wherever focus is; from inside it, focus goes back to its button.
+  useEffect(() => {
+    if (!planOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (drawer.current?.contains(document.activeElement)) focusAfter.current = "drawer-toggle";
+      setPlanOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [planOpen]);
+
+  // The page keeps room for the plan bar at its measured height, which grows when it wraps on a phone or opens.
+  const hasDrawer = !!data?.corridor;
+  useEffect(() => {
+    const el = drawer.current;
+    if (!hasDrawer || !el) return;
+    const root = document.documentElement;
+    const watch = new ResizeObserver(() => root.style.setProperty("--drawer-h", `${el.offsetHeight}px`));
+    watch.observe(el);
+    return () => {
+      watch.disconnect();
+      root.style.removeProperty("--drawer-h");
+    };
+  }, [hasDrawer]);
+
   // A trip that was never started (made before trips started themselves) is started when its board opens.
   useEffect(() => {
     if (!preparing || !prepView?.needsStart || startedPrep.current) return;
@@ -200,7 +241,17 @@ export function BoardScreen() {
   const toggleStar = (listingId: string) =>
     void save({ ...plan, starred: starredSet.has(listingId) ? plan.starred.filter((s) => s !== listingId) : [...plan.starred, listingId] });
   // Hiding also takes the entry off the plan, since a plan should not hold something that is out of sight.
-  const hide = (listingId: string) => {
+  const hide = (listingId: string, from: HTMLElement) => {
+    // The card leaves the page unless hidden entries are showing, so focus moves to the next entry that day,
+    // or the one before, or to the Hidden chip that brings entries back.
+    const article = from.closest("article");
+    if (showHidden) focusAfter.current = article;
+    else {
+      const cards = [...(from.closest(".day")?.querySelectorAll<HTMLElement>("article[data-listing]") ?? [])];
+      const at = article ? cards.indexOf(article) : -1;
+      const other = (list: HTMLElement[]) => list.find((c) => c.dataset.listing !== listingId);
+      focusAfter.current = other(cards.slice(at + 1)) ?? other(cards.slice(0, Math.max(at, 0)).reverse()) ?? "hidden-chip";
+    }
     void save({ ...plan, picks: plan.picks.filter((p) => p.id !== listingId), hidden: [...plan.hidden, listingId] });
     show("Hidden. Bring it back from the filter bar.");
   };
@@ -383,7 +434,7 @@ export function BoardScreen() {
               <span aria-hidden="true">★</span> Starred
             </button>
             {plan.hidden.length > 0 && (
-              <button type="button" className="chip" aria-pressed={showHidden} onClick={() => setShowHidden((v) => !v)}>
+              <button type="button" className="chip" ref={hiddenChip} aria-pressed={showHidden} onClick={() => setShowHidden((v) => !v)}>
                 {showHidden ? `Showing ${plan.hidden.length} hidden` : `${plan.hidden.length} hidden`}
               </button>
             )}
@@ -420,6 +471,7 @@ export function BoardScreen() {
                       {stops.map((s) => (
                         <button key={s.name} type="button" className="chip" aria-pressed={filters.stop === s.name} onClick={() => toggleStop(s.name)}>
                           {s.name} <span className="bct">{s.count}</span>
+                          <span className="sr-only">{s.count === 1 ? " listing" : " listings"}</span>
                           {s.picked && <span className="sr-only"> (has a pick on your plan)</span>}
                         </button>
                       ))}
@@ -446,7 +498,7 @@ export function BoardScreen() {
                     locked={locked}
                     onPick={() => togglePick(o.id, o.kind === "flexible" ? d.day : undefined)}
                     onStar={() => toggleStar(o.id)}
-                    onHide={() => hide(o.id)}
+                    onHide={(from) => hide(o.id, from)}
                     onUnhide={() => unhide(o.id)}
                     onMap={() => showOnMap(o.id)}
                   />
@@ -497,13 +549,7 @@ export function BoardScreen() {
         )}
       </main>
       {corridor && (
-        <section
-          className="drawer"
-          aria-labelledby="plan-title"
-          onKeyDown={(e) => {
-            if (e.key === "Escape" && planOpen) setPlanOpen(false);
-          }}
-        >
+        <section className="drawer" ref={drawer} aria-labelledby="plan-title">
           <div className="drawer-bar">
             <h2 id="plan-title">
               Your plan {plan.picks.length > 0 && <span className="dcount">{plan.picks.length}</span>}
@@ -530,7 +576,7 @@ export function BoardScreen() {
                   Undo clear
                 </button>
               )}
-              <button type="button" className="btn" aria-expanded={planOpen} aria-controls="plan-body" onClick={() => setPlanOpen((o) => !o)}>
+              <button type="button" className="btn" ref={drawerToggle} aria-expanded={planOpen} aria-controls="plan-body" onClick={() => setPlanOpen((o) => !o)}>
                 {planOpen ? "Hide itinerary" : "Show itinerary"}
               </button>
             </div>
@@ -542,6 +588,7 @@ export function BoardScreen() {
               routing={corridor.sources.routing}
               locked={locked}
               onRemove={(id) => togglePick(id)}
+              onEmptied={() => (focusAfter.current = "drawer-toggle")}
               onSetTime={setPickTime}
               onClearMissing={clearMissing}
             />
