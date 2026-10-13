@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
-import { gate, readGate } from "../../../lib/auth";
+import { personGate, readGate } from "../../../lib/auth";
 import { fireRoutine } from "../../../lib/fire-routine";
 import { readJson, storeError } from "../../../lib/http";
 import { listingsBy } from "../../../lib/listings-by";
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const denied = gate(req);
+  const denied = personGate(req);
   if (denied) return denied;
 
   const body = await readJson(req);

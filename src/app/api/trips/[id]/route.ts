@@ -1,4 +1,4 @@
-import { gate } from "../../../../lib/auth";
+import { gate, personGate } from "../../../../lib/auth";
 import { storeError } from "../../../../lib/http";
 import { deleteDoc, getDoc } from "../../../../lib/store";
 import { isTripId, presentTrip, type Trip } from "../../../../lib/trip";
@@ -18,7 +18,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/trips/[id]">) {
 }
 
 export async function DELETE(req: Request, ctx: RouteContext<"/api/trips/[id]">) {
-  const denied = gate(req);
+  const denied = personGate(req);
   if (denied) return denied;
   const { id } = await ctx.params;
   if (!isTripId(id)) return Response.json({ code: "bad_id", error: "not a trip id" }, { status: 400 });
