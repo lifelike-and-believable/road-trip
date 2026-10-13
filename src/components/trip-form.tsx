@@ -83,8 +83,8 @@ export function TripForm() {
       {roundTrip && (
         <div className="field">
           <label htmlFor="stay">Time at the destination, in hours</label>
-          <input id="stay" type="number" min="0" step="0.5" inputMode="decimal" value={stayHours} onChange={(e) => setStayHours(e.target.value)} />
-          <span className="hint">Leave it empty to turn around at the middle of the trip.</span>
+          <input id="stay" aria-describedby="stay-hint" type="number" min="0" step="0.5" inputMode="decimal" value={stayHours} onChange={(e) => setStayHours(e.target.value)} />
+          <span id="stay-hint" className="hint">Leave it empty to turn around at the middle of the trip.</span>
         </div>
       )}
       {errors.length > 0 && (

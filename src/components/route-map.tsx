@@ -2,7 +2,7 @@
 
 import * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { Place, StopSummary } from "../lib/board";
 import type { Corridor } from "../lib/corridor";
 import { CATEGORY_COLOR } from "./categories";
@@ -36,6 +36,7 @@ function text(s: string): HTMLElement {
     It loads only in the browser, since Leaflet reads the window when it loads. */
 export default function RouteMap({ corridor, stops, selected, onSelect, places, focus, onPlace }: Props) {
   const canvas = useRef<HTMLDivElement>(null);
+  const hint = useId();
   const map = useRef<L.Map | null>(null);
   const pins = useRef(new Map<string, L.CircleMarker>());
   const placePins = useRef(new Map<string, L.CircleMarker>());
@@ -125,5 +126,12 @@ export default function RouteMap({ corridor, stops, selected, onSelect, places, 
     pin.openTooltip();
   }, [focus]);
 
-  return <div ref={canvas} className="routemap" role="region" aria-label="Map of the route" />;
+  return (
+    <>
+      <div ref={canvas} className="routemap" role="region" aria-label="Map of the route" aria-describedby={hint} />
+      <p id={hint} className="sr-only">
+        With the map focused, the arrow keys move it and the plus and minus keys zoom. The buttons for the stops, below it, choose a town.
+      </p>
+    </>
+  );
 }

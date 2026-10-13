@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useId, type CSSProperties } from "react";
 import type { Option } from "../lib/board";
 import { localTime } from "../lib/board";
 import { CATEGORY_LABELS } from "../lib/filters";
@@ -15,7 +15,8 @@ type Props = {
   locked: boolean;
   onPick: () => void;
   onStar: () => void;
-  onHide: () => void;
+  /** Given the Hide button, so the board can move focus on from the card that is leaving. */
+  onHide: (from: HTMLElement) => void;
   onUnhide: () => void;
   /** Centre the map on this listing. Offered only when the listing has coordinates. */
   onMap?: () => void;
@@ -39,6 +40,8 @@ function hours(option: Option, tz?: string): string {
 
 /** A scheduled event is a row with its time at the left; a place that is open is a card. */
 export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick, onStar, onHide, onUnhide, onMap }: Props) {
+  // A flexible listing has a card on each day it is open, so the heading's id is the card's own.
+  const heading = useId();
   const { listing } = option;
   const style = { "--catc": CATEGORY_COLOR[listing.category] } as CSSProperties;
   const title = listing.url ? (
@@ -71,7 +74,7 @@ export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick
     </button>
   );
   const hide = !locked && (
-    <button type="button" className="hidebtn" aria-label={`Hide ${listing.title}`} title="Hide this" onClick={onHide}>
+    <button type="button" className="hidebtn" aria-label={`Hide ${listing.title}`} title="Hide this" onClick={(e) => onHide(e.currentTarget)}>
       <span aria-hidden="true">✕</span>
     </button>
   );
@@ -108,9 +111,9 @@ export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick
 
   if (option.kind === "flexible") {
     return (
-      <article className={`run${state}`} style={style} data-listing={listing.id} tabIndex={-1}>
+      <article className={`run${state}`} style={style} data-listing={listing.id} tabIndex={-1} aria-labelledby={heading}>
         <div className="rhead">
-          <h3>{title}</h3>
+          <h3 id={heading}>{title}</h3>
           <div className="ev-ctl">{controls}</div>
         </div>
         <p className="rmeta">{hours(option, tz)}</p>
@@ -127,11 +130,11 @@ export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick
   }
 
   return (
-    <article className={`ev${state}`} style={style} data-listing={listing.id} tabIndex={-1}>
+    <article className={`ev${state}`} style={style} data-listing={listing.id} tabIndex={-1} aria-labelledby={heading}>
       <div className="ev-when">{localTime(option.start, tz)}</div>
       <div className="ev-body">
         <div className="ev-title">
-          <h3>{title}</h3>
+          <h3 id={heading}>{title}</h3>
           {tags}
         </div>
         {where}

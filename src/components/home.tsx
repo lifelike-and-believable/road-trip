@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { call, type PresentedTrip } from "./api";
 import { DeleteTrip } from "./delete-trip";
 import { Gate } from "./gate";
@@ -49,6 +49,17 @@ function TripList() {
 
 export function Home() {
   const [session, setSession] = useState<Session>("loading");
+  // Set when the passcode was just accepted: the field that had focus is gone, so focus moves to the trips.
+  const [justSignedIn, setJustSignedIn] = useState(false);
+  const tripsTitle = useRef<HTMLHeadingElement>(null);
+
+  // Each state names the page, so a tab or a screen reader says where the traveller is.
+  useEffect(() => {
+    if (session !== "loading") document.title = session === "in" ? "Your trips · Road Trip" : "Sign in · Road Trip";
+  }, [session]);
+  useEffect(() => {
+    if (session === "in" && justSignedIn) tripsTitle.current?.focus();
+  }, [session, justSignedIn]);
 
   useEffect(() => {
     let live = true;
@@ -61,11 +72,21 @@ export function Home() {
   }, []);
 
   if (session === "loading") return <p role="status" className="muted">Loading…</p>;
-  if (session === "out") return <Gate onSignedIn={() => setSession("in")} />;
+  if (session === "out")
+    return (
+      <Gate
+        onSignedIn={() => {
+          setJustSignedIn(true);
+          setSession("in");
+        }}
+      />
+    );
   return (
     <div className="stack">
       <section aria-labelledby="trips-title" className="stack">
-        <h2 id="trips-title">Your trips</h2>
+        <h2 id="trips-title" ref={tripsTitle} tabIndex={-1}>
+          Your trips
+        </h2>
         <TripList />
       </section>
       <TripForm />
