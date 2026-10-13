@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, placesOf, stopSummaries, type Pick } from "../lib/board";
 import type { Category, Listing } from "../lib/listing";
@@ -10,10 +10,13 @@ import { CATEGORY_LABELS, categoriesIn, filterDays, withoutHidden, type Filters 
 import { dateRangeLabel, dayLabel, dayParts } from "../lib/format";
 import { browserStorage, readFolds, writeFolds, type Folds } from "../lib/folds";
 import { planText } from "../lib/plan-text";
+import { describePrep } from "../lib/prep";
 import { call, post, put, type BoardData, type Reply } from "./api";
 import { CATEGORY_COLOR } from "./categories";
+import { DeleteTrip } from "./delete-trip";
 import { ItineraryView } from "./itinerary-view";
 import { OptionCard } from "./option-card";
+import { PrepPanel } from "./prep-panel";
 import { useToast } from "./toast";
 
 // Leaflet reads the window when it loads, so the map is left out of the server's render and loaded on its own.
@@ -29,16 +32,27 @@ const RouteMap = dynamic(() => import("./route-map"), {
 type Load = { kind: "loading" } | { kind: "error"; status: number; message: string } | { kind: "ready"; data: BoardData };
 type Plan = { picks: Pick[]; starred: string[]; hidden: string[] };
 
+const PREP_POLL_MS = 5000;
+
+/** How many places have been found, counting each listing once. */
+function placeCount(data: BoardData): number {
+  return Object.values(data.listings?.stops ?? {}).reduce((n, e) => n + e.listings.length, 0);
+}
+
 const NO_FILTERS: Filters = { categories: new Set(), freeOnly: false, starredOnly: false };
 
 export function BoardScreen() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [plan, setPlan] = useState<Plan>({ picks: [], starred: [], hidden: [] });
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [working, setWorking] = useState<"route" | "sources" | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [workError, setWorkError] = useState<string | null>(null);
+  // The time the panel judges "taking too long" against; moved on with each look at the server.
+  const [now, setNow] = useState(() => new Date());
+  const startedPrep = useRef(false);
   // A day the traveller has opened or folded by hand; a day that is already past starts folded.
   const [folds, setFolds] = useState<Folds>(() => readFolds(browserStorage(), id));
   const [planOpen, setPlanOpen] = useState(false);
@@ -69,7 +83,12 @@ export function BoardScreen() {
     };
   }, [id, apply]);
 
-  const refresh = async () => apply(await call<BoardData>(`/api/trips/${id}/board`));
+  // A look at the server that leaves the traveller's own plan alone, so it can never undo a pick that is still being saved.
+  const look = useCallback(async () => {
+    const r = await call<BoardData>(`/api/trips/${id}/board`);
+    if (r.ok) setLoad({ kind: "ready", data: r.value });
+    setNow(new Date());
+  }, [id]);
 
   const data = load.kind === "ready" ? load.data : null;
   const tz = data?.trip.tz;
@@ -96,6 +115,27 @@ export function BoardScreen() {
     () => (data?.corridor ? buildItinerary(plan.picks, byId, data.corridor) : { items: [], gaps: [], missing: [] }),
     [plan.picks, byId, data],
   );
+
+  const prepView = useMemo(
+    () => (data ? describePrep(data.prep, { corridor: !!data.corridor, sources: !!data.sources, listings: placeCount(data) }, now) : null),
+    [data, now],
+  );
+  const preparing = !!data && !locked && !!prepView && placeCount(data) === 0;
+
+  // A trip that was never started (made before trips started themselves) is started when its board opens.
+  useEffect(() => {
+    if (!preparing || !prepView?.needsStart || startedPrep.current) return;
+    startedPrep.current = true;
+    void startPrep();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preparing, prepView?.needsStart]);
+
+  // While the work is going on, look again every few seconds.
+  useEffect(() => {
+    if (!preparing || prepView?.settled) return;
+    const timer = setInterval(() => void look(), PREP_POLL_MS);
+    return () => clearInterval(timer);
+  }, [preparing, prepView?.settled, look]);
 
   async function save(next: Plan) {
     setPlan(next);
@@ -157,13 +197,13 @@ export function BoardScreen() {
   };
   const clearMissing = () => void save({ ...plan, picks: plan.picks.filter((p) => !itinerary.missing.includes(p.id)) });
 
-  async function build(what: "route" | "sources") {
-    setWorking(what);
+  async function startPrep() {
+    setRetrying(true);
     setWorkError(null);
-    const r = await post(`/api/trips/${id}/${what === "route" ? "corridor" : "sources"}`);
-    setWorking(null);
+    const r = await post(`/api/trips/${id}/prepare`);
+    setRetrying(false);
     if (!r.ok) setWorkError(r.message);
-    await refresh();
+    await look();
   }
 
   if (load.kind === "loading") {
@@ -217,6 +257,9 @@ export function BoardScreen() {
               {dateRangeLabel(localDay(trip.start, tz), localDay(trip.end, tz))} · {trip.roundTrip ? "Round trip" : "One way"} ·{" "}
               <span className="badge">{trip.status}</span>
             </p>
+            <div className="trip-actions">
+              <DeleteTrip tripId={trip.id} name={`${trip.from.label} to ${trip.to.label}`} label="Delete this trip" onDeleted={() => router.push("/")} />
+            </div>
           </div>
           {listings && (
             <div className="stamp">
@@ -240,32 +283,7 @@ export function BoardScreen() {
               {workError}
             </p>
           )}
-          {!corridor && !locked && (
-            <section className="note stack" aria-label="Route">
-              <p style={{ margin: 0 }}>The route has not been worked out yet. It is built once a day, or you can build it now.</p>
-              <div>
-                <button className="btn" type="button" disabled={working !== null} onClick={() => void build("route")}>
-                  {working === "route" ? "Building the route…" : "Build the route now"}
-                </button>
-              </div>
-            </section>
-          )}
-          {corridor && !sources && !locked && (
-            <section className="note stack" aria-label="Sources">
-              <p style={{ margin: 0 }}>The route is ready. Next, the pages that list events along it are found, once a day or now.</p>
-              <div>
-                <button className="btn" type="button" disabled={working !== null} onClick={() => void build("sources")}>
-                  {working === "sources" ? "Finding sources…" : "Find sources now"}
-                </button>
-              </div>
-            </section>
-          )}
-          {corridor && sources && !listings && (
-            <p className="note">
-              {sources.count} {sources.count === 1 ? "page" : "pages"} found. No listings yet: they are read from those pages each day for the
-              times you will be at each place.
-            </p>
-          )}
+          {preparing && prepView && <PrepPanel steps={prepView.steps} canRetry={prepView.canRetry} retrying={retrying} onRetry={() => void startPrep()} />}
         </div>
 
         {corridor && total > 0 && (

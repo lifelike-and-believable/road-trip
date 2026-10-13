@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { call, type PresentedTrip } from "./api";
+import { DeleteTrip } from "./delete-trip";
 import { Gate } from "./gate";
 import { TripForm } from "./trip-form";
 
@@ -36,9 +37,10 @@ function TripList() {
               {t.from.label} to {t.to.label}
             </Link>
           </h3>
-          <p className="muted small" style={{ margin: "0.25rem 0 0" }}>
+          <p className="muted small" style={{ margin: "0.25rem 0 0.6rem" }}>
             {t.roundTrip ? "Round trip" : "One way"} · <span className="badge">{t.status}</span>
           </p>
+          <DeleteTrip tripId={t.id} name={`${t.from.label} to ${t.to.label}`} onDeleted={() => setTrips((all) => all && all.filter((x) => x.id !== t.id))} />
         </li>
       ))}
     </ul>

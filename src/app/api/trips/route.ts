@@ -1,8 +1,18 @@
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import { gate, readGate } from "../../../lib/auth";
+import { fireRoutine } from "../../../lib/fire-routine";
 import { readJson, storeError } from "../../../lib/http";
+import { listingsBy } from "../../../lib/listings-by";
+import { liveDeps } from "../../../lib/live-deps";
+import { prepareNewTrip } from "../../../lib/on-create";
+import { workingDoc } from "../../../lib/prep";
 import { listDocs, setDoc } from "../../../lib/store";
 import { parseTripInput, presentTrip, type Trip } from "../../../lib/trip";
+
+// The work after the response (corridor, sources, then the routine) can take a few minutes.
+export const maxDuration = 300;
+const WORK_BUDGET_MS = 240_000;
 
 export async function GET(req: Request) {
   const denied = readGate(req);
@@ -39,5 +49,26 @@ export async function POST(req: Request) {
   } catch (e) {
     return storeError("trips", e);
   }
+
+  // Marked before the answer, so the board that opens next sees it under way and does not start the same work again.
+  try {
+    await setDoc(`prep/${trip.id}`, workingDoc(trip.id, now));
+  } catch (e) {
+    return storeError("trips", e);
+  }
+
+  const by = listingsBy();
+  after(async () => {
+    try {
+      const result = await prepareNewTrip(trip, {
+        deps: liveDeps(Date.now(), WORK_BUDGET_MS, by === "cron"),
+        by,
+        fire: (id) => fireRoutine(id),
+      });
+      console.log("[new trip]", trip.id, JSON.stringify(result));
+    } catch (e) {
+      console.error("[new trip]", trip.id, e instanceof Error ? e.name : "error");
+    }
+  });
   return Response.json(presentTrip(trip, now), { status: 201 });
 }

@@ -256,6 +256,33 @@ h3 {
   opacity: 0.6;
   cursor: not-allowed;
 }
+.btn.danger {
+  border-color: var(--brick);
+  color: var(--brick);
+}
+.btn.danger:hover,
+.btn.danger:focus-visible {
+  background: var(--brick-wash);
+}
+.btn.danger.solid {
+  background: var(--brick);
+  color: var(--surface);
+}
+.ask {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--brick);
+  background: var(--brick-wash);
+}
+.ask .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.trip-actions {
+  margin-top: 14px;
+}
 
 .card {
   background: var(--surface);
@@ -977,4 +1004,32 @@ h3 {
 .flash {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+/* Getting a trip ready */
+.prep-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.prep-step {
+  display: grid;
+  grid-template-columns: 1.4em 1fr;
+  gap: 6px;
+  align-items: baseline;
+}
+.prep-mark {
+  font-variation-settings: "wdth" 90, "wght" 700;
+  color: var(--ink-3);
+}
+.prep-step.done .prep-mark {
+  color: var(--accent);
+}
+.prep-step.failed .prep-mark {
+  color: var(--brick);
+}
+.prep-step.working .prep-mark {
+  color: var(--accent-2);
 }

@@ -2,7 +2,7 @@
 
 Enter a start and end location, a start and end time, and whether the trip is one way or a round trip. Road Trip lists the events and activities along the road between the two places, in the style of the Montreal Weekend Board.
 
-Status: early. Trips can be created, listed, read and deleted through the API, and a trip stops being active when its end time passes. The route corridor, the event sources and the listings can be built, and a daily job (Vercel Cron) keeps the listings of active trips up to date. The trip board is built: sign in with the passcode, make a trip, and pick from what is on along the road. It can be installed to a phone or desktop from the browser (a manifest, an icon and an offline page; the board itself needs a connection). [PLAN.md](PLAN.md) sequences the rest.
+Status: early. Trips can be created, listed, read and deleted (through the API, and from the trip list and the board), and a trip stops being active when its end time passes. The route corridor, the event sources and the listings can be built, and a daily job (Vercel Cron) keeps the listings of active trips up to date. The trip board is built: sign in with the passcode, make a trip, and pick from what is on along the road. It can be installed to a phone or desktop from the browser (a manifest, an icon and an offline page; the board itself needs a connection). [PLAN.md](PLAN.md) sequences the rest.
 
 ## Commands
 
@@ -30,7 +30,8 @@ All routes except `/api/health` and `/api/login` need the session cookie or the 
     GET    /api/trips          trips, soonest first, each with status and legs
     POST   /api/trips          {from, to, start, end, roundTrip, turnaround? | stay?, tz?}
     GET    /api/trips/<id>
-    DELETE /api/trips/<id>     also removes the trip's corridor, sources, listings and plan
+    POST   /api/trips/<id>/prepare   gets a trip ready (route, sources, then starts the routine); answers 202 at once
+    DELETE /api/trips/<id>     also removes the trip's corridor, sources, listings, plan and progress record
     GET    /api/trips/<id>/board      everything one board needs: the trip, corridor, source count, listings and plan
     GET    /api/trips/<id>/plan       the traveller's picks, stars and hidden entries
     PUT    /api/trips/<id>/plan       replace them: {picks: [{id, at?}], starred: [id], hidden?: [id]}; refused once the trip has ended
@@ -47,7 +48,7 @@ Times carry an offset (`2026-10-16T10:00:00-04:00`). On a round trip, `turnaroun
 
 ## Settings
 
-`AUTH_SECRET`, `BOARD_PASSCODE`, `DOC_SALT`, `REFRESH_SECRET`, `CRON_SECRET` (the same value as `REFRESH_SECRET`; Vercel's scheduler sends it), `ROUTINE_SECRET` (a different value, for the listings routine; see "Who reads the listings"), and the Upstash Redis variables `KV_REST_API_URL` and `KV_REST_API_TOKEN`. `ANTHROPIC_API_KEY` is needed to find sources. Optional: `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`; `claude-opus-5-5` costs about twice as much per token, and a model that does not support the effort setting, such as an older generation, is refused), `LISTINGS_BY` (`routine`, the default, or `cron`; see below), `OSM_CONTACT`, an email address or URL that OpenStreetMap's services can reach you at, sent in the user agent as their usage policy asks.
+`AUTH_SECRET`, `BOARD_PASSCODE`, `DOC_SALT`, `REFRESH_SECRET`, `CRON_SECRET` (the same value as `REFRESH_SECRET`; Vercel's scheduler sends it), `ROUTINE_SECRET` (a different value, for the listings routine; see "Who reads the listings"), and the Upstash Redis variables `KV_REST_API_URL` and `KV_REST_API_TOKEN`. `ANTHROPIC_API_KEY` is needed to find sources. Optional: `ROUTINE_FIRE_URL` and `ROUTINE_FIRE_TOKEN` (both or neither; the address and bearer token of the routine's API trigger, so a new trip is read at once; see "Who reads the listings"), `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`; `claude-opus-5-5` costs about twice as much per token, and a model that does not support the effort setting, such as an older generation, is refused), `LISTINGS_BY` (`routine`, the default, or `cron`; see below), `OSM_CONTACT`, an email address or URL that OpenStreetMap's services can reach you at, sent in the user agent as their usage policy asks.
 
 ## Finishing setup
 
@@ -75,6 +76,8 @@ The Vercel project exists and is connected to this repository. What is left, in 
 ## Who reads the listings
 
 Like the Montreal Weekend Board, Road Trip's listings are read by a claude.ai routine, which uses the account's routine allowance and not metered API billing. The routine's instructions are in [docs/routine-prompt.md](docs/routine-prompt.md). Each day it lists the active trips, reads the sources of the places that are due, and posts what it found to `PUT /api/trips/<id>/listings`, which checks the text the same way a read made by this server is checked. The routine's token (`ROUTINE_SECRET`) can read trips, corridors, sources and listings and post listings, and nothing else: it cannot create or delete a trip, run the refresh, or start a read made by the server, and the refresh and cron tokens cannot post listings. The routine reads web pages, so a page that tries to steer it gets no more than that token allows. The daily cron job still builds each trip's corridor and finds its sources (the second uses the Anthropic API once per trip). Set `LISTINGS_BY=cron` to have the cron job read the listings as well, with the Anthropic API, and leave the routine off. `/api/health` reports which is set.
+
+When a trip is made, the app answers at once and then, in the background, builds its corridor and sources and starts the routine for that trip through the routine's API trigger (`ROUTINE_FIRE_URL` and `ROUTINE_FIRE_TOKEN`, from the routine's settings at claude.ai/code/routines: add an API trigger, copy the address, and generate the token, which is shown once). The routine is started only when the sources were found, since it would have nothing to read, and not when `LISTINGS_BY` is `cron`. The board shows the three steps (the route, the pages, the places) and follows them by itself, starts the work when a trip was never started, and offers Try again after a failure; there are no buttons to build the route or find sources by hand. If any step fails, or the two settings are absent, the daily refresh still builds what is missing and the daily run of the routine still reads the trip. Starting the routine draws on the same subscription usage as its daily run and counts toward the routine's limit of 30 starts an hour.
 
 ## Checking against the real services
 
