@@ -33,11 +33,22 @@ describe("stopSummaries", () => {
     expect(stopSummaries(corridor, days, [], new Map())[0].count).toBe(1);
   });
 
-  it("says which stops have a pick on the plan, and has a stop with nothing listed at zero", () => {
+  it("says which stops have a pick on the plan, and leaves out a stop where nothing has been found", () => {
     const days: Day[] = [{ day: "2026-10-17", options: [option("a", "B")] }];
     const byId = new Map([["a", { stop: "B" }]]);
     const r = stopSummaries(corridor, days, [{ id: "a" }], byId);
     expect(r.find((s) => s.name === "B")).toMatchObject({ count: 1, picked: true });
-    expect(r.find((s) => s.name === "C")).toMatchObject({ count: 0, picked: false });
+    expect(r.find((s) => s.name === "C")).toBeUndefined();
+  });
+});
+
+describe("stopSummaries with nothing found yet", () => {
+  it("has no stops at all, so the map shows the road and no pins", () => {
+    expect(stopSummaries(corridor, [], [], new Map())).toEqual([]);
+  });
+
+  it("keeps route order for the stops that do have something", () => {
+    const days: Day[] = [{ day: "2026-10-17", options: [option("c", "C")] }];
+    expect(stopSummaries(corridor, days, [], new Map()).map((s) => s.name)).toEqual(["C"]);
   });
 });
