@@ -1,4 +1,4 @@
-import { gate } from "../../../../../lib/auth";
+import { gate, readGate } from "../../../../../lib/auth";
 import { askModel, makeAsk } from "../../../../../lib/anthropic";
 import type { Corridor } from "../../../../../lib/corridor";
 import { storeError } from "../../../../../lib/http";
@@ -20,7 +20,7 @@ const STATUS: Record<SourcesError["code"], number> = {
 };
 
 export async function GET(req: Request, ctx: RouteContext<"/api/trips/[id]/sources">) {
-  const denied = gate(req);
+  const denied = readGate(req);
   if (denied) return denied;
   const { id } = await ctx.params;
   if (!isTripId(id)) return badId();
