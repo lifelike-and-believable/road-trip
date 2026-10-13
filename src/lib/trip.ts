@@ -199,6 +199,15 @@ export function presentTrip(trip: Trip, now: Date) {
   return { ...trip, status: tripStatus(trip, now), legs: legsOf(trip) };
 }
 
+/* The listings routine reads web pages while holding its token, so it is shown a trip without where it
+   starts and ends, which is often a home address. It needs only the trip's id, status and times. */
+export function routineTrip(trip: Trip, now: Date) {
+  const { from, to, legs, ...rest } = presentTrip(trip, now);
+  void from;
+  void to;
+  return { ...rest, legs: legs.map((l) => ({ id: l.id, start: l.start, end: l.end })) };
+}
+
 const TRIP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function isTripId(id: string): boolean {

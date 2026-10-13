@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { after } from "next/server";
-import { personGate, readGate } from "../../../lib/auth";
+import { isRoutine, personGate, readGate } from "../../../lib/auth";
 import { fireRoutine } from "../../../lib/fire-routine";
 import { readJson, storeError } from "../../../lib/http";
 import { listingsBy } from "../../../lib/listings-by";
@@ -8,7 +8,7 @@ import { liveDeps } from "../../../lib/live-deps";
 import { prepareNewTrip } from "../../../lib/on-create";
 import { workingDoc } from "../../../lib/prep";
 import { listDocs, setDoc } from "../../../lib/store";
-import { parseTripInput, presentTrip, type Trip } from "../../../lib/trip";
+import { parseTripInput, presentTrip, routineTrip, type Trip } from "../../../lib/trip";
 
 // The work after the response (corridor, sources, then the routine) can take a few minutes.
 export const maxDuration = 300;
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     const trips = docs
       .map((d) => d.data)
       .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
-      .map((t) => presentTrip(t, now));
+      .map((t) => (isRoutine(req) ? routineTrip(t, now) : presentTrip(t, now)));
     return Response.json({ trips });
   } catch (e) {
     return storeError("trips", e);

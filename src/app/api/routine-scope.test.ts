@@ -16,6 +16,7 @@ vi.mock("../../lib/store", async (orig) => {
 vi.mock("../../lib/anthropic", () => ({ makeAsk: () => vi.fn(), askModel: () => "m" }));
 vi.mock("../../lib/corridor", async (orig) => ({ ...(await orig<object>()), buildCorridor: vi.fn() }));
 
+import { issueCookie } from "../../lib/auth";
 import * as trips from "./trips/route";
 import * as trip from "./trips/[id]/route";
 import * as corridor from "./trips/[id]/corridor/route";
@@ -78,6 +79,36 @@ describe("what the routine's token can reach", () => {
     expect(denied.map((r) => r.status)).toEqual([401, 401, 401, 401, 401, 401]);
     expect(S.docs.has(`trips/${ID}`)).toBe(true);
     expect(S.docs.has(`listings/${ID}`)).toBe(true);
+  });
+});
+
+// The routine reads web pages while holding its token, so the token is given only what the routine uses:
+// the stops and their times, never where a trip starts and ends, which is often a home address.
+describe("what the routine's token is shown", () => {
+  it("lists trips without their start and end places", async () => {
+    S.docs.set(`trips/${ID}`, { ...(S.docs.get(`trips/${ID}`) as object), from: { label: "12 Rue Secrète, Montréal" }, to: { label: "B", lat: 1, lon: 2 } });
+    const body = await (await trips.GET(call("GET", routine))).json();
+    expect(body.trips[0]).toMatchObject({ id: ID, status: expect.any(String), start: expect.any(String), end: expect.any(String) });
+    expect(body.trips[0]).not.toHaveProperty("from");
+    expect(body.trips[0]).not.toHaveProperty("to");
+    expect(JSON.stringify(body)).not.toContain("Secrète");
+  });
+
+  it("gives the corridor's stops and times without its ends or the road itself", async () => {
+    S.docs.set(`corridors/${ID}`, { ...(S.docs.get(`corridors/${ID}`) as object), line: [[-73.6, 45.5], [-73.4, 44.7]] });
+    const body = await (await corridor.GET(call("GET", routine), asCtx<Parameters<typeof corridor.GET>[1]>())).json();
+    expect(body.legs[0].stops[0]).toMatchObject({ name: "Midway", region: "NY", from: expect.any(String), until: expect.any(String) });
+    expect(body).not.toHaveProperty("from");
+    expect(body).not.toHaveProperty("to");
+    expect(body).not.toHaveProperty("line");
+  });
+
+  it("still shows a signed-in traveller everything", async () => {
+    const owner = { cookie: issueCookie().split(";")[0] };
+    const list = await (await trips.GET(call("GET", owner))).json();
+    expect(list.trips[0]).toHaveProperty("from");
+    const c = await (await corridor.GET(call("GET", owner), asCtx<Parameters<typeof corridor.GET>[1]>())).json();
+    expect(c).toHaveProperty("from");
   });
 });
 

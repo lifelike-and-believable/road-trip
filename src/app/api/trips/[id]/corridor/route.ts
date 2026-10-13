@@ -1,5 +1,5 @@
-import { gate, readGate } from "../../../../../lib/auth";
-import { buildCorridor, type Corridor } from "../../../../../lib/corridor";
+import { gate, isRoutine, readGate } from "../../../../../lib/auth";
+import { buildCorridor, routineCorridor, type Corridor } from "../../../../../lib/corridor";
 import { storeError } from "../../../../../lib/http";
 import { OsmError } from "../../../../../lib/osm";
 import { getDoc, setDoc } from "../../../../../lib/store";
@@ -18,7 +18,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/trips/[id]/corri
   try {
     const corridor = await getDoc<Corridor>(`corridors/${id}`);
     if (!corridor) return Response.json({ code: "no_corridor", error: "no corridor built yet" }, { status: 404 });
-    return Response.json(corridor);
+    return Response.json(isRoutine(req) ? routineCorridor(corridor) : corridor);
   } catch (e) {
     return storeError("corridor", e);
   }
