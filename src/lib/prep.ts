@@ -17,7 +17,8 @@ export type PrepDoc = {
 export type StepState = "done" | "working" | "waiting" | "failed";
 export type Step = { key: "route" | "sources" | "places"; label: string; state: StepState; note?: string };
 
-export type Have = { corridor: boolean; sources: boolean; listings: number };
+/** `stops` is how many towns the stored corridor passes, when it is known. */
+export type Have = { corridor: boolean; sources: boolean; listings: number; stops?: number };
 
 /** A prep still marked as working this long after it was last touched belongs to a function that has since stopped. */
 export const PREP_STALE_MS = 10 * 60_000;
@@ -45,7 +46,10 @@ export function describePrep(prep: PrepDoc | null, have: Have, now: Date) {
   }
 
   const places: Step = { key: "places", label: "Read those pages for what is on", state: "waiting" };
-  if (have.listings > 0) {
+  if (have.corridor && have.stops === 0) {
+    places.state = "done";
+    places.note = "The road passes no towns between the two places, so there is nothing to read.";
+  } else if (have.listings > 0) {
     places.state = "done";
     places.note = `${have.listings} ${have.listings === 1 ? "place" : "places"} found.`;
   } else if (have.sources) {

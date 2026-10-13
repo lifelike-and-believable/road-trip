@@ -117,7 +117,10 @@ export function BoardScreen() {
   );
 
   const prepView = useMemo(
-    () => (data ? describePrep(data.prep, { corridor: !!data.corridor, sources: !!data.sources, listings: placeCount(data) }, now) : null),
+    () => (data ? describePrep(data.prep, {
+      corridor: !!data.corridor, sources: !!data.sources, listings: placeCount(data),
+      stops: data.corridor?.legs.reduce((n, l) => n + l.stops.length, 0),
+    }, now) : null),
     [data, now],
   );
   const preparing = !!data && !locked && !!prepView && placeCount(data) === 0;
