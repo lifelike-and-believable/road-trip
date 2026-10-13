@@ -2,11 +2,17 @@
 
 import type { Gap } from "./board";
 
-/** "2026-10-17" as "Saturday 17 October". The date is a calendar day, so no time zone applies. */
-export function dayLabel(day: string): string {
+/** "2026-10-17" as "Saturday" and "17 October". The date is a calendar day, so no time zone applies. */
+export function dayParts(day: string): { weekday: string; date: string } {
   const d = new Date(`${day}T12:00:00Z`);
   const part = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", ...opts }).format(d);
-  return `${part({ weekday: "long" })} ${d.getUTCDate()} ${part({ month: "long" })}`;
+  return { weekday: part({ weekday: "long" }), date: `${d.getUTCDate()} ${part({ month: "long" })}` };
+}
+
+/** "2026-10-17" as "Saturday 17 October". */
+export function dayLabel(day: string): string {
+  const { weekday, date } = dayParts(day);
+  return `${weekday} ${date}`;
 }
 
 /** "Saturday 17 October", or "Saturday 17 October to Monday 19 October" when the trip spans days. */

@@ -106,6 +106,36 @@ export function boardDays(corridor: Corridor, listings: ListingsDoc | null, tz?:
     }));
 }
 
+export type Band = "morning" | "afternoon" | "evening" | "late";
+
+/** Morning to 11:59, afternoon from noon, evening from 5 p.m., late from 8:30 p.m., as on the Montreal board. */
+export const BAND_LABELS: Record<Band, string> = { morning: "Morning", afternoon: "Afternoon", evening: "Evening", late: "Late" };
+
+export function bandOf(iso: string, tz?: string): Band {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
+  const at = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const minutes = at("hour") * 60 + at("minute");
+  if (minutes < 12 * 60) return "morning";
+  if (minutes < 17 * 60) return "afternoon";
+  if (minutes < 20 * 60 + 30) return "evening";
+  return "late";
+}
+
+export type DayGroups = { bands: Array<{ band: Band; options: Option[] }>; open: Option[] };
+
+const BAND_ORDER: Band[] = ["morning", "afternoon", "evening", "late"];
+
+/** A day's scheduled events by time of day, and apart from them the places that are open all day, which have no start time to sort by. */
+export function groupDay(options: Option[], tz?: string): DayGroups {
+  const byTime = (a: Option, b: Option) => Date.parse(a.start) - Date.parse(b.start) || a.listing.title.localeCompare(b.listing.title);
+  const sorted = [...options].sort(byTime);
+  const bands = BAND_ORDER.map((band) => ({
+    band,
+    options: sorted.filter((o) => o.kind === "fixed" && bandOf(o.start, tz) === band),
+  })).filter((b) => b.options.length > 0);
+  return { bands, open: sorted.filter((o) => o.kind === "flexible") };
+}
+
 export type Placement = "fixed" | "chosen" | "auto" | "unplaceable";
 
 export type ItineraryItem = {

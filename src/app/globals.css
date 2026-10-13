@@ -1,6 +1,9 @@
-/* Colours and shapes carried over from the Montreal Weekend Board: limestone and oxidized
-   copper, picked greys, faintly green-biased. Category colours are never the only signal;
-   every chip also carries its name. */
+/* The Montreal Weekend Board's design language, applied to Road Trip. docs/design-language.md
+   records what each part is and where Road Trip deliberately differs (darker ink-3 and fest
+   colours for contrast, 44 px hit areas, a heavier focus ring).
+
+   Colours: limestone and oxidized copper, picked greys, faintly green-biased. Category colours
+   are never the only signal; every chip and tag also carries its name. */
 :root {
   color-scheme: light dark;
   --ground: #e7e8e4;
@@ -30,9 +33,9 @@
   --c-market: #4c6b2c;
   --shadow: 0 1px 2px rgba(26, 32, 30, 0.05), 0 8px 24px -14px rgba(26, 32, 30, 0.22);
   --r: 4px;
-  --sans: var(--font-archivo), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   --mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --serif: var(--font-newsreader), Georgia, serif;
+  --serif: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -81,58 +84,127 @@ body {
   min-height: 100vh;
   background: var(--ground);
   color: var(--ink);
-  font: 400 15px/1.5 var(--sans);
+  font: 400 16px/1.5 var(--serif);
   -webkit-font-smoothing: antialiased;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+  }
 }
 
 a {
   color: var(--accent-2);
 }
 
+/* Archivo carries every heading and every piece of interface text, at a chosen width. */
 h1,
 h2,
-h3 {
-  font-family: var(--serif);
-  font-weight: 500;
+h3,
+.ui {
+  font-family: var(--sans);
   line-height: 1.2;
   margin: 0;
+}
+h2 {
+  font-variation-settings: "wdth" 110, "wght" 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+h3 {
+  font-variation-settings: "wdth" 98, "wght" 700;
+  font-size: 15.5px;
+  letter-spacing: -0.008em;
 }
 
 :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 .shell {
-  max-width: 62rem;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 1rem 1rem 3rem;
+  padding: 1rem 20px 3rem;
+}
+@media (max-width: 560px) {
+  .shell {
+    padding-inline: 16px;
+  }
 }
 
-.masthead {
-  background: var(--panel);
-  color: var(--panel-ink);
-  padding: 1.25rem 1rem;
+/* The header: a hairline, not a coloured band. */
+.top {
+  border-bottom: 1px solid var(--line);
 }
-.masthead .inner {
-  max-width: 62rem;
+.top .inner {
+  max-width: 1240px;
   margin: 0 auto;
+  padding: 30px 20px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+  justify-content: space-between;
 }
-.masthead h1 {
-  font-size: 1.75rem;
+@media (max-width: 560px) {
+  .top .inner {
+    padding-inline: 16px;
+  }
 }
-.masthead p {
-  margin: 0.25rem 0 0;
-  color: var(--panel-ink);
-  opacity: 0.85;
+.kicker {
+  margin: 0 0 8px;
+  font: 600 11px/1.2 var(--sans);
+  font-variation-settings: "wdth" 82, "wght" 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
-.masthead a {
-  color: var(--panel-ink);
+.kicker a {
+  color: inherit;
+}
+.top h1 {
+  font-variation-settings: "wdth" 118, "wght" 800;
+  font-size: clamp(30px, 6.2vw, 54px);
+  line-height: 0.94;
+  letter-spacing: -0.018em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.top h1 .em {
+  color: var(--accent);
+}
+.dateline {
+  margin: 12px 0 0;
+  font-size: 15px;
+  color: var(--ink-2);
+  max-width: 56ch;
+}
+.stamp {
+  font: 400 11px/1.7 var(--mono);
+  color: var(--ink-3);
+  text-align: right;
+}
+@media (max-width: 700px) {
+  .stamp {
+    text-align: left;
+  }
 }
 
 .mono {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
 .muted {
   color: var(--ink-2);
@@ -141,13 +213,20 @@ h3 {
   font-size: 0.8125rem;
 }
 
-/* Controls are at least 44 px tall. */
+/* Controls are at least 44 px tall. The type is Archivo, uppercase and tracked. */
 .btn,
 .chip,
+.pickbtn,
 .field input,
 .field select {
   min-height: 44px;
-  font: inherit;
+}
+.btn,
+.chip,
+.pickbtn,
+.tag {
+  font-family: var(--sans);
+  text-transform: uppercase;
 }
 
 .btn {
@@ -157,21 +236,19 @@ h3 {
   gap: 0.4rem;
   padding: 0 1rem;
   border: 1px solid var(--accent);
-  border-radius: var(--r);
+  border-radius: 3px;
   background: var(--accent);
   color: var(--on-accent);
   cursor: pointer;
   text-decoration: none;
+  font-size: 11px;
+  font-variation-settings: "wdth" 86, "wght" 700;
+  letter-spacing: 0.08em;
+  transition: all 0.12s;
 }
 .btn.secondary {
   background: var(--surface);
   color: var(--accent-2);
-}
-.btn[aria-pressed="true"] {
-  background: var(--accent-wash);
-  color: var(--accent-2);
-  border-color: var(--accent);
-  font-weight: 600;
 }
 .btn:disabled {
   opacity: 0.6;
@@ -196,15 +273,20 @@ h3 {
   gap: 0.25rem;
 }
 .field label {
-  font-weight: 600;
+  font: 700 11px/1.3 var(--sans);
+  font-variation-settings: "wdth" 82, "wght" 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
 }
 .field input,
 .field select {
   padding: 0 0.6rem;
   border: 1px solid var(--line);
-  border-radius: var(--r);
+  border-radius: 3px;
   background: var(--surface);
   color: var(--ink);
+  font: 400 16px var(--sans);
 }
 .field .hint {
   color: var(--ink-2);
@@ -224,6 +306,7 @@ h3 {
 
 .alert {
   border: 1px solid var(--brick);
+  border-left-width: 3px;
   background: var(--brick-wash);
   color: var(--ink);
   border-radius: var(--r);
@@ -248,22 +331,78 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 0 0.6rem;
-  font-size: 0.8125rem;
+  font: 600 10px/1.8 var(--sans);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--ink-2);
+}
+
+/* The sign-in cover. */
+.gate {
+  max-width: 340px;
+  margin: 8vh auto 0;
+  display: grid;
+  gap: 1rem;
+}
+.gate h2 {
+  font-variation-settings: "wdth" 112, "wght" 800;
+  font-size: 26px;
+}
+.gate p {
+  margin: 0;
+  color: var(--ink-2);
+}
+.gate input {
+  font: 400 16px var(--mono);
+}
+
+/* Section and band labels: small, uppercase, tracked, with a rule to the right. */
+.sect-label,
+.band-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font: 700 10.5px/1.2 var(--sans);
+  font-variation-settings: "wdth" 80, "wght" 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.sect-label::after,
+.band-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.bct {
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0;
 }
 
 /* Board */
 .filters {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 30;
   background: var(--ground);
+  background: color-mix(in srgb, var(--ground) 90%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
-  padding: 0.6rem 0;
+  padding: 10px 20px;
+  margin-inline: -20px;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 8px;
   align-items: center;
+}
+@media (max-width: 560px) {
+  .filters {
+    margin-inline: -16px;
+    padding-inline: 16px;
+    gap: 6px;
+  }
 }
 .chip {
   display: inline-flex;
@@ -273,20 +412,27 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
-  color: var(--ink);
+  color: var(--catc, var(--ink));
   cursor: pointer;
+  font-size: 11px;
+  font-variation-settings: "wdth" 88, "wght" 600;
+  letter-spacing: 0.07em;
+  transition: all 0.12s;
 }
 .chip[aria-pressed="true"] {
-  border-color: var(--ink);
-  background: var(--surface-2);
-  font-weight: 600;
+  border-color: var(--catc, var(--ink));
+  background: var(--catc, var(--ink));
+  color: var(--on-accent);
 }
 .dot {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--chip, var(--ink-3));
+  background: var(--catc, var(--ink-3));
   flex: none;
+}
+.chip[aria-pressed="true"] .dot {
+  background: var(--on-accent);
 }
 
 .layout {
@@ -305,91 +451,311 @@ h3 {
   }
 }
 
-details.day {
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surface-2);
-  margin-bottom: 1rem;
+/* A day: a full-width button with the weekday large, the date and the count at the right, and a chevron. */
+.day {
+  margin-bottom: 34px;
 }
-details.day > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 0.8rem 1rem;
-  min-height: 44px;
+.day-head {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: nowrap;
   align-items: baseline;
-  font-family: var(--serif);
-  font-size: 1.25rem;
+  gap: 6px 14px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0 8px;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-details.day > summary::-webkit-details-marker {
-  display: none;
+.dnum {
+  font: 800 clamp(26px, 4.4vw, 38px) / 1 var(--sans);
+  font-variation-settings: "wdth" 120, "wght" 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
 }
-details.day > summary::before {
-  content: "▸";
-  font-family: var(--sans);
+.dsub {
+  margin-left: auto;
+  text-align: right;
+  font: 400 11px var(--mono);
+  color: var(--ink-3);
+}
+.day-fold {
+  align-self: center;
+  width: 13px;
+  height: 13px;
   color: var(--ink-2);
+  transition: transform 0.18s;
 }
-details.day[open] > summary::before {
-  content: "▾";
+.day.is-folded .day-fold {
+  transform: rotate(-90deg);
+}
+.day.is-folded .day-head {
+  border-bottom-color: var(--line);
+}
+.day.is-folded .day-body {
+  display: none;
 }
 .day-body {
   display: grid;
-  gap: 0.75rem;
-  padding: 0 1rem 1rem;
+  gap: 22px;
+  margin-top: 22px;
+}
+.band {
+  display: grid;
+  gap: 0;
 }
 
-.option {
+/* A scheduled event: time, body, controls. */
+.ev {
   display: grid;
-  gap: 0.4rem;
+  grid-template-columns: 86px minmax(0, 1fr) auto;
+  gap: 0 12px;
+  padding: 11px 0 12px;
+  border-top: 1px solid var(--line-soft);
 }
-.option h3 {
-  font-size: 1.125rem;
+.ev-when {
+  white-space: nowrap;
+  font: 500 12.5px/1.4 var(--mono);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
 }
-.option .meta {
-  font-family: var(--mono);
-  font-size: 0.8125rem;
+.ev-body {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.ev-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+.ev-venue {
+  margin: 0;
+  font-size: 14px;
   color: var(--ink-2);
 }
-.cat {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--chip, var(--ink-2));
-  font-weight: 600;
+.ev-note {
+  margin: 0;
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--ink-3);
 }
-.free {
-  color: var(--accent-2);
-  font-weight: 600;
+.ev-ctl {
+  display: flex;
+  align-items: flex-start;
+}
+.ev.picked {
+  background: var(--accent-wash);
+  box-shadow: -14px 0 0 var(--accent-wash), 14px 0 0 var(--accent-wash);
 }
 
+/* Places that are open rather than timed. */
+.runs {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+}
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px 14px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-top: 3px solid var(--catc, var(--accent));
+  border-radius: var(--r);
+}
+.rhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.rhead h3 {
+  font-size: 14.5px;
+}
+/* The star's hit area is 44 px; pull it out of the card's padding so the card stays compact. */
+.rhead .starbtn {
+  margin: -13px -13px 0 0;
+}
+.run .rmeta {
+  margin: 0;
+  font: 400 12px/1.5 var(--mono);
+  color: var(--ink-2);
+}
+.run .rfoot {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.run.picked {
+  background: var(--accent-wash);
+}
+
+.tag {
+  display: inline-block;
+  padding: 2.5px 5px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  font-size: 9.5px;
+  line-height: 1.5;
+  font-variation-settings: "wdth" 80, "wght" 700;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+.tag.cat {
+  color: var(--on-accent);
+  background: var(--catc, var(--ink-3));
+}
+.tag.free {
+  color: var(--c-market);
+  border-color: currentColor;
+}
+.tag.price {
+  color: var(--ink-3);
+  border-color: var(--line);
+}
+
+/* Add: a small toggle that fills and gains a tick when the entry is on the plan. */
+.pickbtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: 11px;
+  font-variation-settings: "wdth" 84, "wght" 700;
+  letter-spacing: 0.08em;
+  transition: all 0.12s;
+}
+.pickbtn:hover {
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+.pickbtn[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.pickbtn[aria-pressed="true"]::before {
+  content: "✓ ";
+  white-space: pre;
+}
+
+/* A star means "I like this", not "I am going". The glyph is small; the hit area is not. */
+.starbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 15px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.12s;
+}
+.starbtn:hover,
+.starbtn:focus-visible {
+  opacity: 1;
+  border-color: var(--star);
+}
+.starbtn[aria-pressed="true"] {
+  opacity: 1;
+  color: var(--star);
+}
+
+/* The plan. */
+.plan h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.dcount {
+  font: 800 19px var(--sans);
+  font-variation-settings: "wdth" 110, "wght" 800;
+  color: var(--accent);
+}
 .itinerary {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.25rem;
 }
-.itinerary .item {
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surface);
-  padding: 0.6rem 0.8rem;
+.slot {
   display: grid;
-  gap: 0.25rem;
+  grid-template-columns: 86px minmax(0, 1fr) auto;
+  gap: 0 12px;
+  padding: 11px 0 12px;
+  border-top: 1px solid var(--line-soft);
+}
+.stime {
+  white-space: nowrap;
+  font: 500 12px/1.4 var(--mono);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.sbody {
+  display: grid;
+  gap: 2px;
+}
+.sbody strong {
+  font: 700 14.5px/1.25 var(--sans);
+  font-variation-settings: "wdth" 98, "wght" 700;
+}
+.swhere {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.sclash {
+  font: 500 11.5px var(--mono);
+  color: var(--brick);
+}
+.xbtn {
+  width: 44px;
+  height: 44px;
+  margin: -10px 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--ink-3);
+  font-size: 18px;
+  cursor: pointer;
+}
+.xbtn:hover,
+.xbtn:focus-visible {
+  color: var(--brick);
+  border-color: var(--brick);
 }
 .gap {
-  font-size: 0.8125rem;
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 0 12px;
+  padding: 4px 0;
+  font: 400 11px/1.5 var(--mono);
   color: var(--ink-2);
-  padding: 0.1rem 0.8rem 0.1rem 1.4rem;
-  border-left: 3px solid var(--line);
-  margin-left: 0.6rem;
+}
+.gap::before {
+  content: "";
 }
 .gap.warn {
   color: var(--brick);
-  border-left-color: var(--brick);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .sr-only {

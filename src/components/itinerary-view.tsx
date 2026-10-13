@@ -22,29 +22,24 @@ export function ItineraryView({ itinerary, tz, routing, locked, onRemove, onClea
       <ol className="itinerary">
         {items.flatMap((item, i) => {
           const rows = [
-            <li key={item.id} className="item">
-              <span className="mono small">
-                {item.startAt
-                  ? `${localTime(item.startAt, tz)}${item.endAt ? ` to ${localTime(item.endAt, tz)}` : ""}`
-                  : "No time that fits"}
-              </span>
-              <strong>{item.title}</strong>
-              <span className="small muted">
-                near {item.stop}
-                {item.placed === "auto" && item.endAt ? ` · about ${durationLabel((Date.parse(item.endAt) - Date.parse(item.startAt!)) / 60000)} there` : ""}
-              </span>
-              {item.placed === "unplaceable" && (
-                <span className="small" style={{ color: "var(--brick)" }}>
-                  It cannot be fitted within its opening hours alongside your other picks.
+            <li key={item.id} className="item slot">
+              <span className="stime">{item.startAt ? localTime(item.startAt, tz) : "No time"}</span>
+              <div className="sbody">
+                <strong>{item.title}</strong>
+                <span className="swhere">
+                  near {item.stop}
+                  {item.endAt ? ` · until ${localTime(item.endAt, tz)}` : ""}
+                  {item.placed === "auto" && item.endAt ? ` · about ${durationLabel((Date.parse(item.endAt) - Date.parse(item.startAt!)) / 60000)} there` : ""}
                 </span>
-              )}
-              {item.warning === "outside-hours" && <span className="small" style={{ color: "var(--brick)" }}>That time is outside its opening hours.</span>}
+                {item.placed === "unplaceable" && (
+                  <span className="sclash">It cannot be fitted within its opening hours alongside your other picks.</span>
+                )}
+                {item.warning === "outside-hours" && <span className="sclash">That time is outside its opening hours.</span>}
+              </div>
               {!locked && (
-                <span>
-                  <button className="btn secondary" type="button" onClick={() => onRemove(item.id)}>
-                    Remove<span className="sr-only"> {item.title}</span>
-                  </button>
-                </span>
+                <button type="button" className="xbtn" aria-label={`Remove ${item.title} from your plan`} onClick={() => onRemove(item.id)}>
+                  <span aria-hidden="true">×</span>
+                </button>
               )}
             </li>,
           ];

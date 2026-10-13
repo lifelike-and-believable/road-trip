@@ -23,60 +23,87 @@ function host(url: string): string {
   }
 }
 
-function when(option: Option, tz?: string): string {
+/** A place that is open rather than timed: its hours that day, and how long a visit usually takes if known. */
+function hours(option: Option, tz?: string): string {
   const s = option.listing.schedule;
-  if (s.kind === "fixed") {
-    return option.end ? `${localTime(option.start, tz)} to ${localTime(option.end, tz)}` : `${localTime(option.start, tz)}`;
-  }
-  const usual = s.typicalMin ? ` · usual visit ${durationLabel(s.typicalMin)}` : "";
+  const usual = s.kind === "flexible" && s.typicalMin ? ` · usual visit ${durationLabel(s.typicalMin)}` : "";
   return `Open ${localTime(option.start, tz)} to ${localTime(option.end ?? option.start, tz)}${usual}`;
 }
 
+/** A scheduled event is a row with its time at the left; a place that is open is a card. */
 export function OptionCard({ option, tz, picked, starred, locked, onPick, onStar }: Props) {
   const { listing } = option;
-  const style = { "--chip": CATEGORY_COLOR[listing.category] } as CSSProperties;
+  const style = { "--catc": CATEGORY_COLOR[listing.category] } as CSSProperties;
+  const title = listing.url ? (
+    <a href={listing.url} target="_blank" rel="noopener noreferrer">
+      {listing.title}
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
+  ) : (
+    listing.title
+  );
+  const tags = (
+    <>
+      <span className="tag cat">{CATEGORY_LABELS[listing.category]}</span>
+      {listing.cost === "free" && <span className="tag free">Free</span>}
+      {listing.cost === "ticketed" && <span className="tag price">Ticketed</span>}
+    </>
+  );
+  const where = (
+    <p className="ev-venue">
+      {listing.venue ? `${listing.venue}, ` : ""}
+      near {option.stop}
+      {option.region ? `, ${option.region}` : ""}
+    </p>
+  );
+  const notes = listing.notes && <p className="ev-note">{listing.notes}</p>;
+  const source = <p className="ev-note">Read from {host(listing.source)}</p>;
+  const star = (
+    <button type="button" className="starbtn" aria-pressed={starred} aria-label={`Star ${listing.title}`} title="I like this" onClick={onStar}>
+      <span aria-hidden="true">{starred ? "★" : "☆"}</span>
+    </button>
+  );
+  const add = !locked && (
+    <button type="button" className="pickbtn" aria-pressed={picked} onClick={onPick}>
+      {picked ? "On the plan" : "Add"}
+      <span className="sr-only"> {listing.title}</span>
+    </button>
+  );
+
+  if (option.kind === "flexible") {
+    return (
+      <article className={`run${picked ? " picked" : ""}`} style={style}>
+        <div className="rhead">
+          <h3>{title}</h3>
+          {star}
+        </div>
+        <p className="rmeta">{hours(option, tz)}</p>
+        {where}
+        {notes}
+        {source}
+        <div className="rfoot">
+          {tags}
+          {add}
+        </div>
+      </article>
+    );
+  }
+
   return (
-    <article className="card option" style={style}>
-      <span className="cat">{CATEGORY_LABELS[listing.category]}</span>
-      <h3>
-        {listing.url ? (
-          <a href={listing.url} target="_blank" rel="noopener noreferrer">
-            {listing.title}
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
-        ) : (
-          listing.title
-        )}
-      </h3>
-      <p className="meta" style={{ margin: 0 }}>
-        {when(option, tz)}
-      </p>
-      <p className="small muted" style={{ margin: 0 }}>
-        {listing.venue ? `${listing.venue}, ` : ""}
-        near {option.stop}
-        {option.region ? `, ${option.region}` : ""}
-        {listing.cost === "free" && (
-          <>
-            {" · "}
-            <span className="free">Free</span>
-          </>
-        )}
-        {listing.cost === "ticketed" && " · Ticketed"}
-      </p>
-      {listing.notes && <p style={{ margin: 0 }}>{listing.notes}</p>}
-      <p className="small muted" style={{ margin: 0 }}>
-        Read from {host(listing.source)}
-      </p>
-      <div className="row">
-        <button className="btn secondary" type="button" aria-pressed={starred} onClick={onStar}>
-          <span aria-hidden="true">{starred ? "★" : "☆"}</span> Star
-        </button>
-        {!locked && (
-          <button className="btn" type="button" onClick={onPick}>
-            {picked ? "Remove from plan" : "Add to plan"}
-          </button>
-        )}
+    <article className={`ev${picked ? " picked" : ""}`} style={style}>
+      <div className="ev-when">{localTime(option.start, tz)}</div>
+      <div className="ev-body">
+        <div className="ev-title">
+          <h3>{title}</h3>
+          {tags}
+        </div>
+        {where}
+        {option.end && <p className="ev-note">Until {localTime(option.end, tz)}</p>}
+        {notes}
+        {source}
+        {add}
       </div>
+      <div className="ev-ctl">{star}</div>
     </article>
   );
 }
