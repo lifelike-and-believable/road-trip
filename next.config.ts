@@ -1,24 +1,8 @@
 import type { NextConfig } from "next";
+import { contentSecurityPolicy } from "./src/lib/csp";
 
-const isDev = process.env.NODE_ENV === "development";
-
-/* Next's own inline scripts need 'unsafe-inline': a nonce would make every page dynamic, which
-   Partial Prerendering cannot do. The policy still keeps scripts, fonts and requests on this
-   site, so injected markup cannot load code or send data elsewhere, and lets in only the map's
-   tiles from OpenStreetMap. Leaflet positions the map with inline styles. */
-const csp = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://tile.openstreetmap.org",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  ...(isDev ? [] : ["upgrade-insecure-requests"]),
-].join("; ");
+// VERCEL_ENV is set at build time on Vercel, and headers are fixed when the app is built.
+const csp = contentSecurityPolicy({ dev: process.env.NODE_ENV === "development", preview: process.env.VERCEL_ENV === "preview" });
 
 const nextConfig: NextConfig = {
   /* config options here */
