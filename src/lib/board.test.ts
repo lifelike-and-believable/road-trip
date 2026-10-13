@@ -9,8 +9,8 @@ const DAY0 = Date.parse("2026-10-17T00:00:00Z");
 const H = 3_600_000;
 const utc = (hours: number) => new Date(DAY0 + hours * H).toISOString();
 
-const stop = (name: string, km: number, from: number, until = from, kind: Stop["kind"] = "along"): Stop => ({
-  name, region: "NY", lat: 0, lon: 0, kind, km, from: utc(from), until: utc(until),
+const stop = (name: string, km: number, from: number, until = from): Stop => ({
+  name, region: "NY", lat: 0, lon: 0, km, from: utc(from), until: utc(until),
 });
 
 // 100 km in 120 minutes each way, so 1.2 minutes a kilometre. A -> B -> C out, with two days at C, then back.
@@ -20,9 +20,9 @@ const corridor: Corridor = {
   sources: { geocoding: "Nominatim", routing: "OSRM demo server", timing: "estimates" },
   legs: [
     { id: "out", distanceKm: 100, driveMinutes: 120, arriveAt: utc(14), fits: true,
-      stops: [stop("A", 0, 12, 12, "origin"), stop("B", 50, 13), stop("C", 100, 14, 38, "destination")] },
+      stops: [stop("A", 0, 12), stop("B", 50, 13), stop("C", 100, 14, 38)] },
     { id: "back", distanceKm: 100, driveMinutes: 120, arriveAt: utc(60), fits: true,
-      stops: [stop("C", 0, 38, 38, "origin"), stop("B", 50, 39), stop("A", 100, 40, 40, "destination")] },
+      stops: [stop("C", 0, 38), stop("B", 50, 39), stop("A", 100, 40)] },
   ],
 };
 

@@ -25,10 +25,9 @@ export type Stop = {
   region?: string;
   lat: number;
   lon: number;
-  kind: "origin" | "along" | "destination";
   /** Distance from the start of the leg. */
   km: number;
-  /** The traveller is here from this instant until the next. Equal when passing through. */
+  /** The traveller passes through at this instant. */
   from: string;
   until: string;
 };
@@ -70,9 +69,9 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /** Distances along the route at which to name the town, nearest the start first.
 
-    The ends matter most (the traveller dwells at the destination and its
-    approach is where the day's events are), so within two spacings of each
-    end the step is halved. The dense samples are measured from each end, so
+    The two end places are not stops (the traveller knows what is there), but
+    the road just after the start and just before the end still has towns worth
+    stopping in, so within two spacings of each end the step is halved. The dense samples are measured from each end, so
     the first and last gap are both one step. Very long routes widen the
     spacing to keep the number of lookups bounded. */
 export function samplePositions(totalKm: number): number[] {
@@ -137,11 +136,7 @@ export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = 
   const [out, back] = legsOf(trip, route.durationMin);
   const driveMs = route.durationMin * MINUTE_MS;
 
-  const place = (
-    leg: { start: string; end: string },
-    ends: [Located, Located],
-    stops: Along[],
-  ): Pick<LegCorridor, "arriveAt" | "fits" | "stops"> => {
+  const place = (leg: { start: string; end: string }, stops: Along[]): Pick<LegCorridor, "arriveAt" | "fits" | "stops"> => {
     const start = Date.parse(leg.start);
     const end = Date.parse(leg.end);
     const arrive = start + driveMs;
@@ -149,23 +144,16 @@ export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = 
     return {
       arriveAt: iso(arrive),
       fits: arrive <= end,
-      stops: [
-        { name: ends[0].label, lat: ends[0].lat, lon: ends[0].lon, kind: "origin", km: 0, from: leg.start, until: leg.start },
-        ...stops.map((s): Stop => ({ ...s, kind: "along", km: round1(s.km), from: at(s.km), until: at(s.km) })),
-        {
-          name: ends[1].label, lat: ends[1].lat, lon: ends[1].lon, kind: "destination",
-          km: round1(totalKm), from: iso(arrive), until: iso(Math.max(arrive, end)),
-        },
-      ],
+      stops: stops.map((s): Stop => ({ ...s, km: round1(s.km), from: at(s.km), until: at(s.km) })),
     };
   };
 
   const base = { distanceKm: round1(totalKm), driveMinutes: route.durationMin };
-  const legs: LegCorridor[] = [{ id: "out", ...base, ...place(out, [from, to], along) }];
+  const legs: LegCorridor[] = [{ id: "out", ...base, ...place(out, along) }];
   if (back) {
     // The same road driven the other way, so no second route or round of lookups.
     const reversed = [...along].reverse().map((s) => ({ ...s, km: totalKm - s.km }));
-    legs.push({ id: "back", ...base, ...place(back, [to, from], reversed) });
+    legs.push({ id: "back", ...base, ...place(back, reversed) });
   }
 
   return {

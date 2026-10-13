@@ -9,7 +9,7 @@ const H = 3_600_000;
 const at = (hoursFromNow: number) => new Date(NOW.getTime() + hoursFromNow * H).toISOString();
 
 const stop = (name: string, from: string, until = from): Stop => ({
-  name, region: "NY", lat: 0, lon: 0, kind: "along", km: 0, from, until,
+  name, region: "NY", lat: 0, lon: 0, km: 0, from, until,
 });
 
 // B is visited tomorrow, A has already been passed, C is visited in four days

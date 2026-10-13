@@ -5,12 +5,12 @@ import type { Trip } from "./trip";
 
 const NOW = new Date("2026-10-12T12:00:00Z");
 
-const stop = (name: string, kind: Stop["kind"], km: number, from = "2026-10-16T14:00:00.000Z"): Stop => ({
-  name, region: "Québec", lat: 0, lon: 0, kind, km, from, until: from,
+const stop = (name: string, km: number, from = "2026-10-16T14:00:00.000Z"): Stop => ({
+  name, region: "Québec", lat: 0, lon: 0, km, from, until: from,
 });
 
 function corridor(names: string[], back = true): Corridor {
-  const out = names.map((n, i) => stop(n, i === 0 ? "origin" : i === names.length - 1 ? "destination" : "along", i * 50));
+  const out = names.map((n, i) => stop(n, i * 50));
   const legs: Corridor["legs"] = [{ id: "out", distanceKm: 1, driveMinutes: 1, arriveAt: "x", fits: true, stops: out }];
   if (back) legs.push({ id: "back", distanceKm: 1, driveMinutes: 1, arriveAt: "x", fits: true, stops: [...out].reverse() });
   return {

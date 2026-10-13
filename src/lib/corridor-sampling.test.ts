@@ -63,7 +63,7 @@ describe("the corridor uses them", () => {
       driveRoute: vi.fn(async () => ({ distanceKm: 444.8, durationMin: 300, line: LINE })),
       pause: vi.fn(async () => {}),
     });
-    const along = c.legs[0].stops.filter((s) => s.kind === "along");
+    const along = c.legs[0].stops;
     expect(along).toHaveLength(samplePositions(444.8).length);
     expect(along[0].km).toBe(25);
     expect(444.8 - along.at(-1)!.km).toBeLessThanOrEqual(25);
