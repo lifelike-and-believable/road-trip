@@ -16,6 +16,8 @@ export async function GET(req: Request) {
       ANTHROPIC_API_KEY: has("ANTHROPIC_API_KEY"),
       CRON_SECRET: has("CRON_SECRET"),
       ROUTINE_SECRET: has("ROUTINE_SECRET"),
+      ROUTINE_FIRE_URL: has("ROUTINE_FIRE_URL"),
+      ROUTINE_FIRE_TOKEN: has("ROUTINE_FIRE_TOKEN"),
       redis: has("KV_REST_API_URL") || has("UPSTASH_REDIS_REST_URL"),
     },
     listingsBy: listingsBy(),
