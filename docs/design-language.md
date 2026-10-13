@@ -121,6 +121,7 @@ These are deliberate. Each has a reason.
 | Copy plan, Clear, toast | Built |
 | Delete a trip, with a question first | Built (Road Trip only) |
 | Getting-ready steps that follow themselves | Built (Road Trip only) |
+| Installable app: manifest, icon, offline page, safe areas, theme colour (the panel) | Built; Montreal has no service worker, so the offline page is new |
 | Map of the route with a row of stops under it | Built (new; Montreal has no map) |
 | Plan as a bottom drawer | Built |
 | Days side by side in columns on wide screens | Built |
