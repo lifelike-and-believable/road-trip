@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanPath, deleteDoc, getDoc, listDocs, setDoc } from "./store";
+import { bumpCount, cleanPath, deleteDoc, getDoc, listDocs, readCount, setDoc } from "./store";
 
 type Call = { url: string; body: unknown };
 let calls: Call[];
@@ -97,5 +97,23 @@ describe("documents", () => {
     process.env.DOC_SALT = "SALT";
     delete process.env.KV_REST_API_URL;
     await expect(getDoc("trips/t1")).rejects.toThrow("Redis is not configured");
+  });
+});
+
+describe("counters", () => {
+  it("counts under the salt and sets the expiry only on the first count", async () => {
+    replies = [[{ result: 1 }, { result: 1 }]];
+    await bumpCount("login-failures:203.0.113.7", 900);
+    expect(calls[0].url).toBe("https://redis.test/pipeline");
+    expect(calls[0].body).toEqual([
+      ["INCR", "count:SALT:login-failures:203.0.113.7"],
+      ["EXPIRE", "count:SALT:login-failures:203.0.113.7", "900", "NX"],
+    ]);
+  });
+
+  it("reads a count, and nothing counted as zero", async () => {
+    replies = [{ result: "4" }, { result: null }];
+    expect(await readCount("login-failures:a")).toBe(4);
+    expect(await readCount("login-failures:b")).toBe(0);
   });
 });

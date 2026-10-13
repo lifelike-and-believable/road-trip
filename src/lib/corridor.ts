@@ -102,6 +102,15 @@ export function samplePositions(totalKm: number): number[] {
 }
 const iso = (ms: number) => new Date(ms).toISOString();
 
+/** What the listings routine is shown of a corridor: its stops and times, not its two ends or the road between them. */
+export function routineCorridor(corridor: Corridor) {
+  const { from, to, line, ...rest } = corridor;
+  void from;
+  void to;
+  void line;
+  return rest;
+}
+
 export async function buildCorridor(trip: Trip, now: Date, deps: CorridorDeps = defaultDeps): Promise<Corridor> {
   let nominatimCalls = 0;
   const nominatim = async <T>(call: () => Promise<T>): Promise<T> => {
