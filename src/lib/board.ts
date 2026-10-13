@@ -159,6 +159,22 @@ export function stopSummaries(
   return [...out.values()];
 }
 
+export type Place = { id: string; title: string; lat: number; lon: number; category: Listing["category"]; stop: string; picked: boolean };
+
+/** The listings that can go on the map: each once, in the order they are listed, with whether a pick on the plan is it. */
+export function placesOf(days: Day[], picks: Pick[]): Place[] {
+  const onPlan = new Set(picks.map((p) => p.id));
+  const out = new Map<string, Place>();
+  for (const d of days) {
+    for (const o of d.options) {
+      const { lat, lon } = o.listing;
+      if (out.has(o.id) || lat === undefined || lon === undefined) continue;
+      out.set(o.id, { id: o.id, title: o.listing.title, lat, lon, category: o.listing.category, stop: o.stop, picked: onPlan.has(o.id) });
+    }
+  }
+  return [...out.values()];
+}
+
 export type Placement = "fixed" | "chosen" | "auto" | "unplaceable";
 
 export type ItineraryItem = {

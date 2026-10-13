@@ -11,7 +11,7 @@
 
 import type { Corridor } from "./corridor";
 import { inWindows, parseListings, PASS_SLACK_MIN } from "./listing";
-import { stopWindows, type ListingsDoc, type StopListings } from "./refresh";
+import { stopPoint, stopWindows, type ListingsDoc, type StopListings } from "./refresh";
 
 export type IngestReport = {
   updated: string[];
@@ -62,7 +62,7 @@ export function ingestListings(
       report.passed.push(name);
       continue;
     }
-    const found = parseListings(JSON.stringify({ listings: items.slice(0, MAX_ITEMS_PER_STOP) }), name)
+    const found = parseListings(JSON.stringify({ listings: items.slice(0, MAX_ITEMS_PER_STOP) }), name, stopPoint(corridor, name))
       .filter((l) => inWindows(l, visit.windows));
     const before = merged[name]?.listings ?? [];
     const keep = !found.length && before.length > 0;

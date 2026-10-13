@@ -64,6 +64,7 @@ Each listing has these fields. The app drops anything outside them or beyond the
 - `category`, exactly one of `music`, `theatre`, `museum` (museums, galleries, historic sites and heritage buildings), `festival`, `sports`, `food` (farms, markets, orchards, breweries, wineries, restaurants worth a stop), `outdoors` (parks, trails, gardens, viewpoints, beaches, scenic drives), `family`, or `other`;
 - `cost`: `free`, `ticketed` (admission is charged) or `unknown`;
 - `schedule`: as above;
+- `lat` and `lon`: the place's own latitude and longitude in decimal degrees (for example 44.98 and -73.45), so that it can be put on the map. Take them from the place's own page (many give a map link, an address block, or `geo` markup), from a map or directions page for it, or from a search that names the venue. Give both or neither. Leave them out when you are not sure: never use the town's centre or a guess, and never give 0 and 0. The app drops a pair that is more than 40 km from the stop and keeps the listing;
 - `notes`: one specific sentence, at most 300 characters, saying what the thing is and anything that matters for going: a reservation or ticket needed, a seasonal closure, a sold-out date, how far it is from the stop, whether it is accessible, and what you could not confirm. Every listing has a note.
 
 Give at most 40 listings per stop. Aim for as many real ones as the town supports, up to that: a stop with a museum, two parks, a farm market and a brewery should show all of them. Do not pad with things you could not confirm, and do not repeat the same place under two titles.
@@ -75,7 +76,8 @@ Run a script over the payload that checks, and fix anything it flags:
 - every time has a UTC offset, every flexible `closes` is after its `opens` by no more than 24 hours, and every fixed start is a real date;
 - no title or venue is longer than 120 characters and no note longer than 300;
 - no stop has more than 40 listings and no two listings in a stop share a title and schedule kind;
-- every listing has a note.
+- every listing has a note;
+- every `lat` and `lon` is a number, they come in pairs, each pair is on the globe, and none is exactly 0 and 0.
 
 STEP 4: Post.
 Post one request per trip with the stops you read in this run (leave out the others):
@@ -83,7 +85,7 @@ Post one request per trip with the stops you read in this run (leave out the oth
     PUT BASE/api/trips/<id>/listings
     Authorization: Bearer <the ROUTINE_SECRET value>
     Content-Type: application/json
-    {"stops":{"<stop name>":[{"title":"...","url":"https://...","venue":"...","category":"music|theatre|museum|festival|sports|food|outdoors|family|other","cost":"free|ticketed|unknown","source":"https://page you read it on","schedule":{"kind":"fixed","start":"...","durationMin":120},"notes":"..."}]}}
+    {"stops":{"<stop name>":[{"title":"...","url":"https://...","venue":"...","category":"music|theatre|museum|festival|sports|food|outdoors|family|other","cost":"free|ticketed|unknown","source":"https://page you read it on","schedule":{"kind":"fixed","start":"...","durationMin":120},"lat":44.98,"lon":-73.45,"notes":"..."}]}}
 
 A flexible listing has `"schedule":{"kind":"flexible","hours":[{"opens":"...","closes":"..."}],"typicalMin":90}`. A stop you read that has nothing on is sent as an empty list, and the app keeps what it had before. Check the response: `report.updated` and `report.kept` list the stops stored. If the app answers `empty_payload`, `bad_payload`, `trip_ended`, `no_corridor` or any other error, do not retry in a loop; note it and go on to the next trip. A 401 means the token was not accepted: say so clearly, and do not try to find or guess another one.
 
