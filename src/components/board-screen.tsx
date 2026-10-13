@@ -5,33 +5,39 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, type Pick } from "../lib/board";
 import type { Category, Listing } from "../lib/listing";
-import { CATEGORY_LABELS, categoriesIn, filterDays, type Filters } from "../lib/filters";
+import { CATEGORY_LABELS, categoriesIn, filterDays, withoutHidden, type Filters } from "../lib/filters";
 import { dateRangeLabel, dayLabel, dayParts } from "../lib/format";
+import { planText } from "../lib/plan-text";
 import { call, post, put, type BoardData, type Reply } from "./api";
 import { CATEGORY_COLOR } from "./categories";
 import { ItineraryView } from "./itinerary-view";
 import { OptionCard } from "./option-card";
+import { useToast } from "./toast";
 
 type Load = { kind: "loading" } | { kind: "error"; status: number; message: string } | { kind: "ready"; data: BoardData };
-type Plan = { picks: Pick[]; starred: string[] };
+type Plan = { picks: Pick[]; starred: string[]; hidden: string[] };
 
 const NO_FILTERS: Filters = { categories: new Set(), freeOnly: false, starredOnly: false };
 
 export function BoardScreen() {
   const { id } = useParams<{ id: string }>();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
-  const [plan, setPlan] = useState<Plan>({ picks: [], starred: [] });
+  const [plan, setPlan] = useState<Plan>({ picks: [], starred: [], hidden: [] });
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [working, setWorking] = useState<"route" | "sources" | null>(null);
   const [workError, setWorkError] = useState<string | null>(null);
   // A day the traveller has opened or folded by hand; a day that is already past starts folded.
   const [folds, setFolds] = useState<Record<string, boolean>>({});
+  const [showHidden, setShowHidden] = useState(false);
+  // The plan's text, shown for the traveller to copy by hand when the browser would not let it be copied.
+  const [copyText, setCopyText] = useState<string | null>(null);
+  const { toast, show } = useToast();
 
   const apply = useCallback((r: Reply<BoardData>) => {
     if (r.ok) {
       setLoad({ kind: "ready", data: r.value });
-      setPlan({ picks: r.value.plan.picks, starred: r.value.plan.starred });
+      setPlan({ picks: r.value.plan.picks, starred: r.value.plan.starred, hidden: r.value.plan.hidden ?? [] });
     } else {
       setLoad({ kind: "error", status: r.status, message: r.message });
     }
@@ -56,8 +62,11 @@ export function BoardScreen() {
 
   const days = useMemo(() => (data?.corridor ? boardDays(data.corridor, data.listings, tz) : []), [data, tz]);
   const starredSet = useMemo(() => new Set(plan.starred), [plan.starred]);
-  const shown = useMemo(() => filterDays(days, filters, starredSet), [days, filters, starredSet]);
-  const categories = useMemo(() => categoriesIn(days), [days]);
+  const hiddenSet = useMemo(() => new Set(plan.hidden), [plan.hidden]);
+  // What the traveller has hidden is left out, unless the Hidden chip is on to bring entries back.
+  const visibleDays = useMemo(() => (showHidden ? days : withoutHidden(days, hiddenSet)), [days, hiddenSet, showHidden]);
+  const shown = useMemo(() => filterDays(visibleDays, filters, starredSet), [visibleDays, filters, starredSet]);
+  const categories = useMemo(() => categoriesIn(visibleDays), [visibleDays]);
   const byId = useMemo(() => {
     const m = new Map<string, { listing: Listing; stop: string }>();
     for (const [stop, entry] of Object.entries(data?.listings?.stops ?? {})) for (const listing of entry.listings) m.set(listing.id, { listing, stop });
@@ -74,13 +83,39 @@ export function BoardScreen() {
     setSaveError(r.ok ? null : r.message);
   }
 
-  const togglePick = (listingId: string) =>
-    void save({
-      ...plan,
-      picks: plan.picks.some((p) => p.id === listingId) ? plan.picks.filter((p) => p.id !== listingId) : [...plan.picks, { id: listingId }],
-    });
+  const togglePick = (listingId: string) => {
+    const on = plan.picks.some((p) => p.id === listingId);
+    void save({ ...plan, picks: on ? plan.picks.filter((p) => p.id !== listingId) : [...plan.picks, { id: listingId }] });
+    show(on ? "Removed from your plan" : "Added to your plan");
+  };
   const toggleStar = (listingId: string) =>
     void save({ ...plan, starred: starredSet.has(listingId) ? plan.starred.filter((s) => s !== listingId) : [...plan.starred, listingId] });
+  // Hiding also takes the entry off the plan, since a plan should not hold something that is out of sight.
+  const hide = (listingId: string) => {
+    void save({ ...plan, picks: plan.picks.filter((p) => p.id !== listingId), hidden: [...plan.hidden, listingId] });
+    show("Hidden. Bring it back from the filter bar.");
+  };
+  const unhide = (listingId: string) => {
+    const hidden = plan.hidden.filter((h) => h !== listingId);
+    void save({ ...plan, hidden });
+    if (hidden.length === 0) setShowHidden(false);
+    show("Back on the board");
+  };
+  const clearPlan = () => {
+    void save({ ...plan, picks: [] });
+    setCopyText(null);
+    show("Plan cleared");
+  };
+  async function copyPlan(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyText(null);
+      show("Plan copied");
+    } catch {
+      setCopyText(text);
+      show("Copy failed. Select the text below.");
+    }
+  }
   const clearMissing = () => void save({ ...plan, picks: plan.picks.filter((p) => !itinerary.missing.includes(p.id)) });
 
   async function build(what: "route" | "sources") {
@@ -116,7 +151,7 @@ export function BoardScreen() {
 
   const { trip, corridor, sources, listings } = load.data;
   const today = localDay(new Date().toISOString(), tz);
-  const total = days.reduce((n, d) => n + d.options.length, 0);
+  const total = visibleDays.reduce((n, d) => n + d.options.length, 0);
   const count = shown.reduce((n, d) => n + d.options.length, 0);
   const filtering = filters.categories.size > 0 || filters.freeOnly || filters.starredOnly;
   const toggleCategory = (c: Category) =>
@@ -219,6 +254,11 @@ export function BoardScreen() {
             >
               <span aria-hidden="true">★</span> Starred
             </button>
+            {plan.hidden.length > 0 && (
+              <button type="button" className="chip" aria-pressed={showHidden} onClick={() => setShowHidden((v) => !v)}>
+                {showHidden ? `Showing ${plan.hidden.length} hidden` : `${plan.hidden.length} hidden`}
+              </button>
+            )}
             {filtering && (
               <button type="button" className="chip" onClick={() => setFilters(NO_FILTERS)}>
                 Clear filters
@@ -249,9 +289,12 @@ export function BoardScreen() {
                     tz={tz}
                     picked={plan.picks.some((p) => p.id === o.id)}
                     starred={starredSet.has(o.id)}
+                    hidden={hiddenSet.has(o.id)}
                     locked={locked}
                     onPick={() => togglePick(o.id)}
                     onStar={() => toggleStar(o.id)}
+                    onHide={() => hide(o.id)}
+                    onUnhide={() => unhide(o.id)}
                   />
                 );
                 return (
@@ -296,14 +339,36 @@ export function BoardScreen() {
               })}
             </section>
             <section className="plan card stack" aria-labelledby="plan-title">
-              <h2 id="plan-title">
-                Your plan {plan.picks.length > 0 && <span className="dcount">{plan.picks.length}</span>}
-              </h2>
+              <div className="plan-bar">
+                <h2 id="plan-title">
+                  Your plan {plan.picks.length > 0 && <span className="dcount">{plan.picks.length}</span>}
+                </h2>
+                {itinerary.items.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      onClick={() => void copyPlan(planText(`${trip.from.label} to ${trip.to.label}`, itinerary, byId, tz))}
+                    >
+                      Copy plan
+                    </button>
+                    {!locked && (
+                      <button type="button" className="btn secondary" onClick={clearPlan}>
+                        Clear
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
               <ItineraryView itinerary={itinerary} tz={tz} routing={corridor.sources.routing} locked={locked} onRemove={togglePick} onClearMissing={clearMissing} />
+              {copyText !== null && (
+                <textarea className="copybox" readOnly value={copyText} aria-label="The plan as text, to copy" onFocus={(e) => e.currentTarget.select()} />
+              )}
             </section>
           </div>
         )}
       </main>
+      {toast}
     </>
   );
 }

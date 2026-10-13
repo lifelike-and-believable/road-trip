@@ -10,9 +10,13 @@ type Props = {
   tz?: string;
   picked: boolean;
   starred: boolean;
+  /** Hidden from the traveller's board, and shown only because the Hidden chip is on. */
+  hidden: boolean;
   locked: boolean;
   onPick: () => void;
   onStar: () => void;
+  onHide: () => void;
+  onUnhide: () => void;
 };
 
 function host(url: string): string {
@@ -31,7 +35,7 @@ function hours(option: Option, tz?: string): string {
 }
 
 /** A scheduled event is a row with its time at the left; a place that is open is a card. */
-export function OptionCard({ option, tz, picked, starred, locked, onPick, onStar }: Props) {
+export function OptionCard({ option, tz, picked, starred, hidden, locked, onPick, onStar, onHide, onUnhide }: Props) {
   const { listing } = option;
   const style = { "--catc": CATEGORY_COLOR[listing.category] } as CSSProperties;
   const title = listing.url ? (
@@ -63,24 +67,43 @@ export function OptionCard({ option, tz, picked, starred, locked, onPick, onStar
       <span aria-hidden="true">{starred ? "★" : "☆"}</span>
     </button>
   );
-  const add = !locked && (
+  const hide = !locked && (
+    <button type="button" className="hidebtn" aria-label={`Hide ${listing.title}`} title="Hide this" onClick={onHide}>
+      <span aria-hidden="true">✕</span>
+    </button>
+  );
+  const bringBack = (
+    <button type="button" className="restore" onClick={onUnhide}>
+      Bring back<span className="sr-only"> {listing.title}</span>
+    </button>
+  );
+  const controls = hidden ? (locked ? null : bringBack) : (
+    <>
+      {star}
+      {hide}
+    </>
+  );
+  const add = !locked && !hidden && (
     <button type="button" className="pickbtn" aria-pressed={picked} onClick={onPick}>
       {picked ? "On the plan" : "Add"}
       <span className="sr-only"> {listing.title}</span>
     </button>
   );
+  const state = `${picked ? " picked" : ""}${hidden ? " is-hidden" : ""}`;
+  const hiddenNote = hidden && <p className="ev-note">Hidden from your board.</p>;
 
   if (option.kind === "flexible") {
     return (
-      <article className={`run${picked ? " picked" : ""}`} style={style}>
+      <article className={`run${state}`} style={style}>
         <div className="rhead">
           <h3>{title}</h3>
-          {star}
+          <div className="ev-ctl">{controls}</div>
         </div>
         <p className="rmeta">{hours(option, tz)}</p>
         {where}
         {notes}
         {source}
+        {hiddenNote}
         <div className="rfoot">
           {tags}
           {add}
@@ -90,7 +113,7 @@ export function OptionCard({ option, tz, picked, starred, locked, onPick, onStar
   }
 
   return (
-    <article className={`ev${picked ? " picked" : ""}`} style={style}>
+    <article className={`ev${state}`} style={style}>
       <div className="ev-when">{localTime(option.start, tz)}</div>
       <div className="ev-body">
         <div className="ev-title">
@@ -101,9 +124,10 @@ export function OptionCard({ option, tz, picked, starred, locked, onPick, onStar
         {option.end && <p className="ev-note">Until {localTime(option.end, tz)}</p>}
         {notes}
         {source}
+        {hiddenNote}
         {add}
       </div>
-      <div className="ev-ctl">{star}</div>
+      <div className="ev-ctl">{controls}</div>
     </article>
   );
 }

@@ -37,7 +37,13 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/trips/[id]/plan"
     if (!isActive(trip, new Date())) {
       return Response.json({ code: "trip_ended", error: "this trip is over and is no longer changed" }, { status: 409 });
     }
-    const plan: PlanDoc = { tripId: id, updatedAt: new Date().toISOString(), picks: parsed.picks, starred: parsed.starred };
+    const plan: PlanDoc = {
+      tripId: id,
+      updatedAt: new Date().toISOString(),
+      picks: parsed.picks,
+      starred: parsed.starred,
+      ...(parsed.hidden ? { hidden: parsed.hidden } : {}),
+    };
     await setDoc(`plans/${id}`, plan);
     return Response.json(plan);
   } catch (e) {

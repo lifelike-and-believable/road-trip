@@ -115,7 +115,8 @@ These are deliberate. Each has a reason.
 | Event row, card, tags, Add, Star | Built |
 | Plan rows and the gaps between them | Built |
 | Gate | Built |
-| Hide, "Bring back", "Hidden" chip | Not built |
-| Copy plan, toast, plan drawer | Not built |
+| Hide, "Bring back", "Hidden" chip | Built |
+| Copy plan, Clear, toast | Built |
+| Plan as a bottom drawer | Not built |
 | Fold state kept in the browser | Not built |
 | Map | Not in Montreal; designed for Road Trip first, see `PLAN.md` |

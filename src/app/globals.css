@@ -579,8 +579,11 @@ h3 {
   font-size: 14.5px;
 }
 /* The star's hit area is 44 px; pull it out of the card's padding so the card stays compact. */
-.rhead .starbtn {
+.rhead .ev-ctl {
   margin: -13px -13px 0 0;
+}
+.rhead .ev-ctl:has(> .restore) {
+  margin: 0;
 }
 .run .rmeta {
   margin: 0;
@@ -678,6 +681,56 @@ h3 {
   color: var(--star);
 }
 
+/* Hide: a small cross with the same 44 px hit area as the star. */
+.hidebtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--ink-3);
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: all 0.12s;
+}
+.hidebtn:hover,
+.hidebtn:focus-visible {
+  opacity: 1;
+  color: var(--brick);
+  border-color: var(--brick);
+}
+
+/* A hidden entry, shown because the Hidden chip is on. It is dimmed by colour and struck through, never by opacity, so it still reads. */
+.restore {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--accent-2);
+  font: 700 10px/1 var(--sans);
+  font-variation-settings: "wdth" 84, "wght" 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.is-hidden,
+.is-hidden .ev-venue,
+.is-hidden .rmeta,
+.is-hidden .ev-note {
+  color: var(--ink-3);
+}
+.is-hidden h3,
+.is-hidden h3 a {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+
 /* The plan. */
 .plan h2 {
   display: flex;
@@ -767,4 +820,44 @@ h3 {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.plan-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.copybox {
+  width: 100%;
+  min-height: 8rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 12px/1.5 var(--mono);
+}
+
+/* A small dark message above the bottom edge. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--ground);
+  font: 600 12px/1.4 var(--sans);
+  font-variation-settings: "wdth" 88, "wght" 600;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.toast[data-on="true"] {
+  opacity: 1;
 }
