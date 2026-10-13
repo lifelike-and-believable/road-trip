@@ -91,6 +91,18 @@ describe("boardDays", () => {
     expect(days[1].options[0]).toMatchObject({ start: utc(38), end: utc(46) });
   });
 
+  it("shows a place open twice in one day once that day, with both periods", () => {
+    // 10 a.m. to noon and 1 to 5 p.m. in Toronto
+    const l = flexible("m", "C", [[14, 16], [17, 21]]);
+    const days = boardDays(corridor, doc(l), TZ);
+    expect(days).toHaveLength(1);
+    expect(days[0].options).toHaveLength(1);
+    expect(days[0].options[0]).toMatchObject({
+      id: "m", start: utc(14), end: utc(21),
+      periods: [{ opens: utc(14), closes: utc(16) }, { opens: utc(17), closes: utc(21) }],
+    });
+  });
+
   it("leaves out a listing that is not on near any time the traveller is at its stop", () => {
     expect(boardDays(corridor, doc(fixed("x", "B", 100, 60)), TZ)).toEqual([]);
     expect(boardDays(corridor, doc(flexible("y", "A", [[100, 110]])), TZ)).toEqual([]);

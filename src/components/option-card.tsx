@@ -33,7 +33,8 @@ function host(url: string): string {
 function hours(option: Option, tz?: string): string {
   const s = option.listing.schedule;
   const usual = s.kind === "flexible" && s.typicalMin ? ` · usual visit ${durationLabel(s.typicalMin)}` : "";
-  return `Open ${localTime(option.start, tz)} to ${localTime(option.end ?? option.start, tz)}${usual}`;
+  const periods = option.periods ?? [{ opens: option.start, closes: option.end ?? option.start }];
+  return `Open ${periods.map((p) => `${localTime(p.opens, tz)} to ${localTime(p.closes, tz)}`).join(" and ")}${usual}`;
 }
 
 /** A scheduled event is a row with its time at the left; a place that is open is a card. */
