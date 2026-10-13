@@ -138,7 +138,7 @@ export function groupDay(options: Option[], tz?: string): DayGroups {
 
 export type StopSummary = { name: string; region?: string; lat: number; lon: number; count: number; picked: boolean };
 
-/** The towns along the road, once each in route order, with how many listings are near each and whether a pick is. */
+/** The towns along the road where something has been found, once each in route order, with how many listings are near each and whether a pick is. */
 export function stopSummaries(
   corridor: Corridor,
   days: Day[],
@@ -152,8 +152,9 @@ export function stopSummaries(
   const out = new Map<string, StopSummary>();
   for (const leg of corridor.legs) {
     for (const s of leg.stops) {
-      if (out.has(s.name)) continue;
-      out.set(s.name, { name: s.name, region: s.region, lat: s.lat, lon: s.lon, count: listed.get(s.name)?.size ?? 0, picked: picked.has(s.name) });
+      const count = listed.get(s.name)?.size ?? 0;
+      if (out.has(s.name) || count === 0) continue;
+      out.set(s.name, { name: s.name, region: s.region, lat: s.lat, lon: s.lon, count, picked: picked.has(s.name) });
     }
   }
   return [...out.values()];

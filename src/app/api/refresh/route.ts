@@ -1,11 +1,9 @@
-import { askModel, makeAsk } from "../../../lib/anthropic";
 import { isRefreshJob } from "../../../lib/auth";
-import { buildCorridor } from "../../../lib/corridor";
 import { storeError } from "../../../lib/http";
 import { listingsBy } from "../../../lib/listings-by";
+import { liveDeps } from "../../../lib/live-deps";
 import { runAll } from "../../../lib/pipeline";
-import { buildSources, type Ask } from "../../../lib/sources";
-import { getDoc, listDocs, setDoc } from "../../../lib/store";
+import { listDocs } from "../../../lib/store";
 import type { Trip } from "../../../lib/trip";
 
 // The job stops starting work well before the function's limit and leaves the rest for the next run.
@@ -27,24 +25,10 @@ async function handle(req: Request) {
     return storeError("refresh", e);
   }
 
-  // Made on first use, so a missing key fails the stages that need Claude and not the corridor stage.
-  let ask: Ask | undefined;
-  const lazyAsk: Ask = async (request) => (ask ??= makeAsk())(request);
-
   const started = Date.now();
   const by = listingsBy();
   try {
-    const result = await runAll(trips, {
-      getDoc,
-      setDoc,
-      buildCorridor: (trip, now) => buildCorridor(trip, now),
-      buildSources: (trip, corridor, now) => buildSources(trip, corridor, now, { ask: lazyAsk, model: askModel() }),
-      ask: lazyAsk,
-      now: () => new Date(),
-      clock: Date.now,
-      deadline: started + WORK_BUDGET_MS,
-      readListings: by === "cron",
-    });
+    const result = await runAll(trips, liveDeps(started, WORK_BUDGET_MS, by === "cron"));
     return Response.json({ ranAt: new Date(started).toISOString(), listingsBy: by, ...result });
   } catch (e) {
     console.error("[refresh]", e);
