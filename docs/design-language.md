@@ -28,9 +28,11 @@ Other values: radius `--r: 4px` (3px on small controls, 2px on tags, 999px on ch
 
 Three faces, loaded with `next/font/google` in `src/app/layout.tsx` (Montreal loads the same three from Google Fonts):
 
-- **Newsreader** (serif, with the optical-size axis and italics): body text, descriptions, notes.
+- **Newsreader** (serif): body text, descriptions, notes. Only the regular weight and its italic are used, so they are loaded as static files rather than the variable font.
 - **Archivo** (sans, variable width and weight): every heading and every piece of interface text, at a chosen width through `font-variation-settings: "wdth" N, "wght" N`. This is the signature of the look.
 - **IBM Plex Mono**: times, dates, counts and small print, with tabular numerals.
+
+Faces are loaded with `font-display: optional`, so text is never held back or re-laid out when a face arrives; on a slow first visit the page shows a close fallback and the faces apply from the next load. Only Archivo and Newsreader are preloaded. Plex Mono and the italic are used on the board and not on the home page, so they load when needed. This keeps the home page inside the 2.5 s Largest Contentful Paint budget: loading the variable Newsreader with its optical-size axis and italic, and preloading everything, measured 4.2 s locally in Lighthouse's slow-4G simulation, and the shipped set measures about the same as before the design change (2.1 s median over seven runs).
 
 ## Type
 

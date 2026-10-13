@@ -36,6 +36,7 @@
   --sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   --mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
   --serif: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --serif-italic: var(--font-newsreader-italic), "Iowan Old Style", Georgia, serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -352,9 +353,6 @@ h3 {
   margin: 0;
   color: var(--ink-2);
 }
-.gate input {
-  font: 400 16px var(--mono);
-}
 
 /* Section and band labels: small, uppercase, tracked, with a rule to the right. */
 .sect-label,
@@ -541,6 +539,7 @@ h3 {
 }
 .ev-note {
   margin: 0;
+  font-family: var(--serif-italic);
   font-size: 13.5px;
   font-style: italic;
   color: var(--ink-3);
