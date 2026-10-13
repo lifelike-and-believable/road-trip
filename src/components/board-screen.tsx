@@ -114,7 +114,14 @@ export function BoardScreen() {
   // A look at the server that leaves the traveller's own plan alone, so it can never undo a pick that is still being saved.
   const look = useCallback(async () => {
     const r = await call<BoardData>(`/api/trips/${id}/board`);
-    if (r.ok) setLoad({ kind: "ready", data: r.value });
+    if (r.ok) {
+      // The same corridor, built at the same moment, keeps its object, so the map is not rebuilt on every look.
+      setLoad((prev) => {
+        const old = prev.kind === "ready" ? prev.data.corridor : null;
+        const same = old && r.value.corridor && old.builtAt === r.value.corridor.builtAt;
+        return { kind: "ready", data: same ? { ...r.value, corridor: old } : r.value };
+      });
+    }
     setNow(new Date());
   }, [id]);
 
