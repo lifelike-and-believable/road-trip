@@ -37,16 +37,12 @@ function trip(over: Record<string, unknown> = {}, coords = true): Trip {
 const ms = (iso: string) => Date.parse(iso);
 
 describe("a one-way trip", () => {
-  it("lists origin, one stop per town along the road, then destination", async () => {
+  it("lists one stop per town along the road", async () => {
     const c = await buildCorridor(trip(), NOW, deps());
     expect(c.legs).toHaveLength(1);
     const stops = c.legs[0].stops;
-    expect(stops.map((s) => `${s.kind}:${s.name}`)).toEqual([
-      "origin:Alpha", "along:Town 0", "along:Town 1", "along:Town 2", "along:Town 3", "destination:Omega",
-    ]);
-    expect(stops[0].km).toBe(0);
-    expect(stops.at(-1)?.km).toBeCloseTo(444.8, 1);
-    expect(stops[1].region).toBe("Région");
+    expect(stops.map((s) => s.name)).toEqual(["Town 0", "Town 1", "Town 2", "Town 3"]);
+    expect(stops[0].region).toBe("Région");
   });
 
   it("keeps the first of consecutive samples that fall in the same town", async () => {
@@ -54,33 +50,28 @@ describe("a one-way trip", () => {
     const c = await buildCorridor(trip(), NOW, d);
     // twelve samples (see samplePositions), two or three per town
     expect(d.reverseName).toHaveBeenCalledTimes(12);
-    expect(c.legs[0].stops.filter((s) => s.kind === "along")).toHaveLength(4);
+    expect(c.legs[0].stops).toHaveLength(4);
   });
 
   it("drops a sample where the map names no place", async () => {
     const d = deps({ reverseName: vi.fn(async (_la: number, lon: number) => (lon < 1.5 ? null : { name: `Town ${Math.floor(lon)}` })) });
     const names = (await buildCorridor(trip(), NOW, d)).legs[0].stops.map((s) => s.name);
-    expect(names).toEqual(["Alpha", "Town 1", "Town 2", "Town 3", "Omega"]);
+    expect(names).toEqual(["Town 1", "Town 2", "Town 3"]);
   });
 
   it("estimates when the traveller passes each stop from the route's own duration", async () => {
     const t = trip();
     const stops = (await buildCorridor(t, NOW, deps())).legs[0].stops;
     const start = ms(t.start);
-    expect(stops[0].from).toBe(t.start);
-    expect(stops[0].until).toBe(t.start);
-    const first = stops[1]; // the first town, from the sample 50 km in
+    const first = stops[0]; // the first town, from the sample 25 km in
     expect(ms(first.from) - start).toBeCloseTo((first.km / 444.8) * 300 * MIN, -3);
     expect(first.until).toBe(first.from);
   });
 
-  it("holds the destination from arrival until the trip ends", async () => {
+  it("works out when the traveller arrives from the route's duration", async () => {
     const t = trip();
     const leg = (await buildCorridor(t, NOW, deps())).legs[0];
-    const dest = leg.stops.at(-1)!;
-    expect(ms(dest.from)).toBe(ms(t.start) + 300 * MIN);
-    expect(dest.until).toBe(t.end);
-    expect(leg.arriveAt).toBe(dest.from);
+    expect(ms(leg.arriveAt)).toBe(ms(t.start) + 300 * MIN);
     expect(leg).toMatchObject({ id: "out", fits: true, driveMinutes: 300 });
   });
 
@@ -99,10 +90,10 @@ describe("a one-way trip", () => {
     expect(d.reverseName.mock.calls.length).toBeGreaterThan(10);
   });
 
-  it("lists only the two ends when the route is shorter than the spacing", async () => {
+  it("lists no stops when the route is shorter than the spacing", async () => {
     const d = deps({ driveRoute: vi.fn(async () => ({ distanceKm: 30, durationMin: 25, line: [[0, 0], [0.27, 0]] as LonLat[] })) });
     const stops = (await buildCorridor(trip(), NOW, d)).legs[0].stops;
-    expect(stops.map((s) => s.kind)).toEqual(["origin", "destination"]);
+    expect(stops).toEqual([]);
     expect(d.reverseName).not.toHaveBeenCalled();
   });
 });
@@ -158,19 +149,13 @@ describe("a round trip", () => {
     expect(d.reverseName).toHaveBeenCalledTimes(12);
     const [out, back] = c.legs;
     expect(back.stops.map((s) => s.name)).toEqual(out.stops.map((s) => s.name).reverse());
-    expect(back.stops[0]).toMatchObject({ kind: "origin", name: "Omega", km: 0 });
-    expect(back.stops.at(-1)).toMatchObject({ kind: "destination", name: "Alpha" });
-    expect(back.stops.at(-1)?.km).toBeCloseTo(444.8, 1);
+    expect(back.stops[0].km).toBeLessThan(back.stops.at(-1)!.km);
   });
 
-  it("holds the outbound destination until the turnaround, then drives back", async () => {
-    const t = rt();
-    const [out, back] = (await buildCorridor(t, NOW, deps())).legs;
-    expect(out.stops.at(-1)?.until).toBe("2026-10-17T16:00:00.000Z");
-    expect(back.stops[0].from).toBe("2026-10-17T16:00:00.000Z");
-    expect(back.stops[0].until).toBe("2026-10-17T16:00:00.000Z");
+  it("starts the return at the turnaround and drives back", async () => {
+    const [, back] = (await buildCorridor(rt(), NOW, deps())).legs;
+    expect(ms(back.stops[0].from)).toBeGreaterThan(ms("2026-10-17T16:00:00Z"));
     expect(ms(back.arriveAt)).toBe(ms("2026-10-17T16:00:00Z") + 300 * MIN);
-    expect(back.stops.at(-1)?.until).toBe(t.end);
     expect(back.fits).toBe(true);
   });
 
@@ -185,17 +170,11 @@ describe("a round trip", () => {
 describe("a round trip with a stay", () => {
   const withStay = (stay: number) => trip({ roundTrip: true, stay });
 
-  it("holds the destination for the stay, then starts the return from arrival plus the stay", async () => {
+  it("starts the return from arrival plus the stay", async () => {
     // leaves 2026-10-16 14:00, drives 300 minutes, stays 24 hours
-    const t = withStay(1440);
-    const [out, back] = (await buildCorridor(t, NOW, deps())).legs;
+    const [out, back] = (await buildCorridor(withStay(1440), NOW, deps())).legs;
     expect(out.arriveAt).toBe("2026-10-16T19:00:00.000Z");
-    expect(out.stops.at(-1)?.from).toBe("2026-10-16T19:00:00.000Z");
-    expect(out.stops.at(-1)?.until).toBe("2026-10-17T19:00:00.000Z");
-    expect(back.stops[0].from).toBe("2026-10-17T19:00:00.000Z");
-    expect(back.stops[0].until).toBe("2026-10-17T19:00:00.000Z");
     expect(back.arriveAt).toBe("2026-10-18T00:00:00.000Z");
-    expect(back.stops.at(-1)?.until).toBe(t.end);
     expect(out.fits).toBe(true);
     expect(back.fits).toBe(true);
   });

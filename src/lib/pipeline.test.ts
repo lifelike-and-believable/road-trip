@@ -19,8 +19,8 @@ const corridorFor = (id: string): Corridor => ({
   legs: [{
     id: "out", distanceKm: 1, driveMinutes: 1, arriveAt: at(30), fits: true,
     stops: [
-      { name: "A", lat: 0, lon: 0, kind: "origin", km: 0, from: at(24), until: at(24) },
-      { name: "C", lat: 0, lon: 0, kind: "destination", km: 1, from: at(30), until: at(60) },
+      { name: "A", lat: 0, lon: 0, km: 0, from: at(24), until: at(24) },
+      { name: "C", lat: 0, lon: 0, km: 1, from: at(30), until: at(60) },
     ],
   }],
 });

@@ -74,7 +74,7 @@ describe("live check", () => {
       console.log(`\n${leg.id}: ${leg.distanceKm} km, ${leg.driveMinutes} min, arrives ${fmt(leg.arriveAt)}, fits=${leg.fits}`);
       for (const s of leg.stops) {
         const window = s.until === s.from ? fmt(s.from) : `${fmt(s.from)} to ${fmt(s.until)}`;
-        console.log(`  ${String(s.km).padStart(6)} km  ${s.kind.padEnd(11)} ${s.name}${s.region ? ` (${s.region})` : ""}  ${window}`);
+        console.log(`  ${String(s.km).padStart(6)} km  ${s.name}${s.region ? ` (${s.region})` : ""}  ${window}`);
       }
     }
     expect(corridor.legs.length).toBeGreaterThan(0);

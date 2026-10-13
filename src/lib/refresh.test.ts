@@ -9,17 +9,17 @@ const NOW = new Date("2026-10-12T12:00:00Z");
 const H = 3_600_000;
 const at = (hoursFromNow: number) => new Date(NOW.getTime() + hoursFromNow * H).toISOString();
 
-const stop = (name: string, kind: Stop["kind"], from: string, until = from): Stop => ({
-  name, region: "NY", lat: 0, lon: 0, kind, km: 0, from, until,
+const stop = (name: string, from: string, until = from): Stop => ({
+  name, region: "NY", lat: 0, lon: 0, km: 0, from, until,
 });
 
 /** A -> B -> C out, and back again, with times the tests set. */
 function corridor(times: Record<string, Array<[string, string]>>): Corridor {
   const leg = (id: "out" | "back", names: string[], i: number): Corridor["legs"][number] => ({
     id, distanceKm: 1, driveMinutes: 1, arriveAt: "x", fits: true,
-    stops: names.map((n, k) => {
+    stops: names.map((n) => {
       const [from, until] = times[n][Math.min(i, times[n].length - 1)];
-      return stop(n, k === 0 ? "origin" : k === names.length - 1 ? "destination" : "along", from, until);
+      return stop(n, from, until);
     }),
   });
   return {
