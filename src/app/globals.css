@@ -256,6 +256,33 @@ h3 {
   opacity: 0.6;
   cursor: not-allowed;
 }
+.btn.danger {
+  border-color: var(--brick);
+  color: var(--brick);
+}
+.btn.danger:hover,
+.btn.danger:focus-visible {
+  background: var(--brick-wash);
+}
+.btn.danger.solid {
+  background: var(--brick);
+  color: var(--surface);
+}
+.ask {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--brick);
+  background: var(--brick-wash);
+}
+.ask .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.trip-actions {
+  margin-top: 14px;
+}
 
 .card {
   background: var(--surface);

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BAND_LABELS, boardDays, buildItinerary, groupDay, localDay, localTime, placesOf, stopSummaries, type Pick } from "../lib/board";
 import type { Category, Listing } from "../lib/listing";
@@ -13,6 +13,7 @@ import { planText } from "../lib/plan-text";
 import { describePrep } from "../lib/prep";
 import { call, post, put, type BoardData, type Reply } from "./api";
 import { CATEGORY_COLOR } from "./categories";
+import { DeleteTrip } from "./delete-trip";
 import { ItineraryView } from "./itinerary-view";
 import { OptionCard } from "./option-card";
 import { PrepPanel } from "./prep-panel";
@@ -42,6 +43,7 @@ const NO_FILTERS: Filters = { categories: new Set(), freeOnly: false, starredOnl
 
 export function BoardScreen() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [plan, setPlan] = useState<Plan>({ picks: [], starred: [], hidden: [] });
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
@@ -255,6 +257,9 @@ export function BoardScreen() {
               {dateRangeLabel(localDay(trip.start, tz), localDay(trip.end, tz))} · {trip.roundTrip ? "Round trip" : "One way"} ·{" "}
               <span className="badge">{trip.status}</span>
             </p>
+            <div className="trip-actions">
+              <DeleteTrip tripId={trip.id} name={`${trip.from.label} to ${trip.to.label}`} label="Delete this trip" onDeleted={() => router.push("/")} />
+            </div>
           </div>
           {listings && (
             <div className="stamp">
