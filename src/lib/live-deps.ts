@@ -1,3 +1,4 @@
+import "server-only";
 import { askModel, makeAsk } from "./anthropic";
 import { buildCorridor } from "./corridor";
 import type { PipelineDeps } from "./pipeline";

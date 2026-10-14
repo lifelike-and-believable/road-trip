@@ -2,6 +2,8 @@
    made and not at the next daily refresh. The address and the token come from
    the routine's API trigger in claude.ai; the token reaches that routine only. */
 
+import "server-only";
+
 export type FireConfig = { url: string; token: string };
 export type FireResult = { fired: true } | { fired: false; reason: string };
 

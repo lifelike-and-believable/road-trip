@@ -33,7 +33,8 @@ All routes except `/api/health` and `/api/login` need the session cookie or the 
     GET    /api/trips/<id>
     POST   /api/trips/<id>/prepare   gets a trip ready (route, sources, then starts the routine); answers 202 at once
     DELETE /api/trips/<id>     also removes the trip's corridor, sources, listings, plan and progress record
-    GET    /api/trips/<id>/board      everything one board needs: the trip, corridor, source count, listings and plan
+    GET    /api/trips/<id>/board      everything one board needs: the trip, corridor, source count, listings, how getting
+                                      it ready is going (prep), and plan
     GET    /api/trips/<id>/plan       the traveller's picks, stars and hidden entries
     PUT    /api/trips/<id>/plan       replace them: {picks: [{id, at?}], starred: [id], hidden?: [id]}; refused once the trip has ended
     POST   /api/trips/<id>/corridor   build the route corridor once (active trips only)
@@ -70,7 +71,7 @@ The Vercel project exists and is connected to this repository. What is left, in 
 
 2. **Add Redis.** In the project's Storage tab, add the Upstash Redis integration and connect it to the project.
 3. **Redeploy.** New settings apply only to deployments made after they are added.
-4. **Check the settings arrived.** Open `/api/health` on the deployment. Every entry under `config` should read `true`. It shows presence only, never a value.
+4. **Check the settings arrived.** Open `/api/health` on the deployment. Every entry under `config` should read `true`, except `ROUTINE_FIRE_URL` and `ROUTINE_FIRE_TOKEN`, which are optional (both or neither). `redis` is `true` only when both the store's address and its token are set. It shows presence only, never a value.
 5. **Deployment Protection.** If Vercel Authentication is on, the deployment redirects to a Vercel sign-in page before the app's own passcode. The Montreal Weekend Board turns it off for its project for the same reason. If you keep it on, add the `VERCEL_AUTOMATION_BYPASS_SECRET` repository secret so the preview checks can reach the app.
 6. **Repository.** Create a `tests-reviewed` label (a reviewer adds it when a change to an existing test is intended), and in Claude Code accept the project's `rfr-core` plugin when prompted.
 
