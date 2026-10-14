@@ -1,3 +1,4 @@
+import "server-only";
 import crypto from "node:crypto";
 
 /* One passcode, a signed cookie, and a bearer token for the refresh job:

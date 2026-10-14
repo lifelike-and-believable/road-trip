@@ -2,6 +2,7 @@
    read pages, for event sources and listings. Written against the installed
    SDK's types. */
 
+import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { SourcesError, type Ask } from "./sources";
 

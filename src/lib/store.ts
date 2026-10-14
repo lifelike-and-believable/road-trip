@@ -6,6 +6,8 @@
 
    Everything is namespaced under a secret salt. */
 
+import "server-only";
+
 function salt(): string {
   const s = process.env.DOC_SALT;
   if (!s) throw new Error("DOC_SALT is not set");
