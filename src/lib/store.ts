@@ -71,6 +71,13 @@ export async function getDoc<T = unknown>(p: string): Promise<T | null> {
   return parse(v) as T | null;
 }
 
+/** Several documents in one request, in the order asked, with null for any that is missing. */
+export async function getDocs(paths: string[]): Promise<unknown[]> {
+  if (!paths.length) return [];
+  const values = await redis(paths.map((p) => ["GET", docKey(p)]));
+  return values.map(parse);
+}
+
 export async function setDoc(p: string, data: unknown): Promise<void> {
   const { col, id } = split(p);
   const cmds: Command[] = [["SET", docKey(p), JSON.stringify(data)]];

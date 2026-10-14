@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const S = vi.hoisted(() => ({ docs: new Map<string, unknown>() }));
 
-vi.mock("../../../../../lib/store", async (orig) => ({ ...(await orig<typeof import("../../../../../lib/store")>()), getDoc: async (p: string) => S.docs.get(p) ?? null }));
+vi.mock("../../../../../lib/store", async (orig) => ({
+  ...(await orig<typeof import("../../../../../lib/store")>()),
+  getDoc: async (p: string) => S.docs.get(p) ?? null,
+  getDocs: async (ps: string[]) => ps.map((p) => S.docs.get(p) ?? null),
+}));
 
 import { GET } from "./route";
 import { issueCookie } from "../../../../../lib/auth";
