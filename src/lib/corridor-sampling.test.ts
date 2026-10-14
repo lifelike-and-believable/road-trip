@@ -15,10 +15,10 @@ describe("samplePositions", () => {
       expect(p[0]).toBe(25);
       expect(total - p.at(-1)!).toBeCloseTo(25, 1);
     }
-    // a longer route widens the step, and the gap with it (spacing is total / 16 here)
-    const p = samplePositions(1200);
-    expect(1200 - p.at(-1)!).toBeCloseTo(37.5, 1);
-    expect(p[0]).toBeCloseTo(37.5, 1);
+    // only a very long route widens the step, and the gap with it (spacing is total / 76 here)
+    const p = samplePositions(6000);
+    expect(6000 - p.at(-1)!).toBeCloseTo(6000 / 76 / 2, 1);
+    expect(p[0]).toBeCloseTo(6000 / 76 / 2, 1);
   });
 
   it("finds nothing to sample on a route shorter than half a spacing step either side", () => {
@@ -37,10 +37,17 @@ describe("samplePositions", () => {
   });
 
   it("keeps the number of lookups bounded on a very long route, with wider steps", () => {
-    const p = samplePositions(2000);
-    expect(p.length).toBeGreaterThan(10);
-    expect(p.length).toBeLessThanOrEqual(20);
+    const p = samplePositions(6000);
+    expect(p.length).toBeGreaterThan(60);
+    expect(p.length).toBeLessThanOrEqual(80);
     expect(p[0]).toBeGreaterThan(25);
+  });
+
+  // A multi-day trip passes many towns; they are sampled by distance, not spread over a fixed few.
+  it("keeps the 50 km spacing on a long route, so a longer trip gets more towns", () => {
+    expect(samplePositions(2000)[0]).toBe(25);
+    expect(samplePositions(3000).length).toBeGreaterThanOrEqual(55);
+    expect(samplePositions(3000).length).toBeGreaterThan(samplePositions(1500).length);
   });
 });
 

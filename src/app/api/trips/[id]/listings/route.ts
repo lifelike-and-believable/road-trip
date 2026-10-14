@@ -2,16 +2,35 @@ import { makeAsk } from "../../../../../lib/anthropic";
 import { gate, isRoutine, readGate } from "../../../../../lib/auth";
 import type { Corridor } from "../../../../../lib/corridor";
 import { readJson, storeError } from "../../../../../lib/http";
+import { fireRoutine, routineFireConfig } from "../../../../../lib/fire-routine";
 import { ingestListings } from "../../../../../lib/ingest";
-import { refreshListings, type ListingsDoc } from "../../../../../lib/refresh";
+import { listingsBy } from "../../../../../lib/listings-by";
+import { refreshListings, unreadPlaces, type ListingsDoc } from "../../../../../lib/refresh";
 import { SourcesError, type SourceList } from "../../../../../lib/sources";
-import { getDoc, setDoc } from "../../../../../lib/store";
+import { bumpCount, getDoc, readCount, setDoc } from "../../../../../lib/store";
 import { isActive, isTripId, type Trip } from "../../../../../lib/trip";
 
 // Reading a trip's stops takes several web reads; stop starting new ones well before the limit.
 export const maxDuration = 300;
 const WORK_BUDGET_MS = 240_000;
 const INGEST_LIMIT_BYTES = 512 * 1024;
+
+/* A long trip has more places than one run of the routine reads. When it posts and places are still unread,
+   it is started again for them, a few times a day at most, well inside the trigger's limit of 30 starts an hour. */
+const MAX_CONTINUES_PER_DAY = 4;
+
+async function continueRoutine(tripId: string): Promise<void> {
+  if (listingsBy() !== "routine" || !routineFireConfig()) return;
+  try {
+    const key = `routine-continues:${tripId}`;
+    if ((await readCount(key)) >= MAX_CONTINUES_PER_DAY) return;
+    await bumpCount(key, 24 * 3600);
+    const r = await fireRoutine(tripId, { kind: "continue" });
+    if (!r.fired) console.error("[listings] the routine could not be started again:", r.reason);
+  } catch {
+    console.error("[listings] the routine could not be started again: store");
+  }
+}
 
 const badId = () => Response.json({ code: "bad_id", error: "not a trip id" }, { status: 400 });
 
@@ -99,10 +118,13 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/trips/[id]/listi
     const corridor = await getDoc<Corridor>(`corridors/${id}`);
     if (!corridor) return Response.json({ code: "no_corridor", error: "build the route corridor first" }, { status: 409 });
 
-    const result = ingestListings(corridor, await getDoc<ListingsDoc>(`listings/${id}`), body.value, new Date());
+    const now = new Date();
+    const result = ingestListings(corridor, await getDoc<ListingsDoc>(`listings/${id}`), body.value, now);
     if (!result.ok) return Response.json({ code: result.code, error: result.error }, { status: 400 });
     if (result.report.updated.length || result.report.kept.length) await setDoc(`listings/${id}`, result.doc);
-    return Response.json({ listings: result.doc, report: result.report });
+    const unread = unreadPlaces(corridor, result.doc, now);
+    if (unread.length) await continueRoutine(id);
+    return Response.json({ listings: result.doc, report: result.report, unread: unread.length });
   } catch (e) {
     return storeError("listings", e);
   }

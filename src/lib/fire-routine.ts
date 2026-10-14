@@ -18,7 +18,8 @@ export function routineFireConfig(env: Record<string, string | undefined> = proc
   return { url, token };
 }
 
-type Options = { env?: Record<string, string | undefined>; fetch?: typeof fetch; timeoutMs?: number };
+/** "new" for a trip just made; "continue" for one whose places did not all fit in the routine's last run. */
+type Options = { env?: Record<string, string | undefined>; fetch?: typeof fetch; timeoutMs?: number; kind?: "new" | "continue" };
 
 /** Never throws, and the result carries a code only: not the response, not the token. */
 export async function fireRoutine(tripId: string, options: Options = {}): Promise<FireResult> {
@@ -33,7 +34,12 @@ export async function fireRoutine(tripId: string, options: Options = {}): Promis
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
       },
-      body: JSON.stringify({ text: `A trip was just made: ${tripId}. Its corridor and sources are ready. Read this trip's places first.` }),
+      body: JSON.stringify({
+        text:
+          options.kind === "continue"
+            ? `Continue trip ${tripId}: some of its places have not been read yet. Read only this trip's places that are due.`
+            : `A trip was just made: ${tripId}. Its corridor and sources are ready. Read this trip's places first.`,
+      }),
       signal: AbortSignal.timeout(options.timeoutMs ?? 15_000),
     });
     return res.ok ? { fired: true } : { fired: false, reason: `http_${res.status}` };

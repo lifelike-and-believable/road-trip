@@ -54,3 +54,15 @@ describe("fireRoutine", () => {
     expect(result).toEqual({ fired: false, reason: "network" });
   });
 });
+
+describe("fireRoutine to continue a trip", () => {
+  // A long trip has more places than one run reads; the routine is started again to read the rest.
+  it("says to carry on with the places of this trip that are still due", async () => {
+    const fetcher = vi.fn(async () => new Response("{}", { status: 200 }));
+    await fireRoutine("trip-1", { env, fetch: fetcher as unknown as typeof fetch, kind: "continue" });
+    const [, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    const text = JSON.parse(String(init.body)).text as string;
+    expect(text).toMatch(/^Continue trip trip-1:/);
+    expect(text).not.toMatch(/just made/);
+  });
+});

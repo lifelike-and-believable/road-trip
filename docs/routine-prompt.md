@@ -28,6 +28,7 @@ WORKING EFFICIENTLY. This runs every day, so keep it lean without cutting qualit
 
 STEP 1: Find the trips and the stops that are due.
 0. If this run was started with a line of text naming a trip id ("A trip was just made: ..."), that trip was made moments ago and its corridor and sources are ready: work only that trip, and treat every one of its stops as due, since nothing has been read yet. Otherwise this is the daily run and the steps below apply to every trip.
+   If the line instead says "Continue trip <id>", that trip has more places than the last run read: work only that trip, and treat its stops as due by the usual rules below (a stop read in the last 20 hours is skipped), so the run picks up where the last one stopped. The app starts these runs itself, a few times a day at most, until every place has been read.
 1. `GET BASE/api/trips` lists the trips. Skip any with `status` "ended". Work through the rest soonest start first. An ended trip is never updated.
 2. For each trip get, and save to files:
    - `GET BASE/api/trips/<id>/corridor`: `legs[].stops[]` each have a `name`, a `region`, and `from` and `until`, the times the traveller is there (UTC instants). A stop on a round trip is visited once on each leg, so a name can appear twice: use every window for that name. If it returns 404, skip the trip: the app builds the corridor itself.
