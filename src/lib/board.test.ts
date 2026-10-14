@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { boardDays, buildItinerary, instantIn, itineraryDays, localDay, localTime, passingNote, SLACK_MIN, type Pick } from "./board";
+import { describe, expect, it, vi } from "vitest";
+import { boardDays, buildItinerary, clockTime, instantIn, itineraryDays, localDay, localTime, passingNote, SLACK_MIN, type Pick } from "./board";
 import type { Corridor, Stop } from "./corridor";
 import { PASS_SLACK_MIN, type Listing } from "./listing";
 import type { ListingsDoc } from "./refresh";
@@ -274,5 +274,21 @@ describe("itineraryDays", () => {
     const days = itineraryDays(buildItinerary([pick("closed"), pick("sat")], index(closed, sat), corridor, TZ), TZ);
     expect(days.map((d) => d.day)).toEqual(["2026-10-17", null]);
     expect(days[1].rows[0].item.id).toBe("closed");
+  });
+});
+
+describe("the clock and calendar readings", () => {
+  // Building a formatter is the slow part of Intl, and a board with hundreds of listings asks thousands of times a render.
+  it("build each kind of formatter once per zone, however often they are asked", () => {
+    const spy = vi.spyOn(Intl, "DateTimeFormat");
+    for (let i = 0; i < 50; i++) {
+      localDay(utc(i), "America/Halifax");
+      localTime(utc(i), "America/Halifax");
+      clockTime(utc(i), "America/Halifax");
+    }
+    expect(spy.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(localDay(utc(0), "America/Halifax")).toBe("2026-10-16");
+    expect(localTime(utc(14), "America/Halifax")).toBe("11:00 a.m.");
+    spy.mockRestore();
   });
 });
