@@ -5,8 +5,8 @@ import { OsmError } from "../../../../../lib/osm";
 import { getDoc, setDoc } from "../../../../../lib/store";
 import { isActive, isTripId, type Trip } from "../../../../../lib/trip";
 
-// Looking up a few dozen towns at Nominatim's one request a second takes a while.
-export const maxDuration = 60;
+// Looking up as many as 80 towns at Nominatim's one request a second takes about a minute and a half.
+export const maxDuration = 300;
 
 const badId = () => Response.json({ code: "bad_id", error: "not a trip id" }, { status: 400 });
 

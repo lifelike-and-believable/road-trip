@@ -83,12 +83,18 @@ describe("a one-way trip", () => {
     expect(leg.stops.length).toBeGreaterThan(2);
   });
 
-  it("widens the spacing on a long route to cap the lookups", async () => {
+  it("samples a long route by distance, and widens the spacing only on a very long one to cap the lookups", async () => {
     const long: LonLat[] = [[0, 0], [18, 0]];
     const d = deps({ driveRoute: vi.fn(async () => ({ distanceKm: 2000, durationMin: 1500, line: long })) });
     await buildCorridor(trip({}, true), NOW, d);
-    expect(d.reverseName.mock.calls.length).toBeLessThanOrEqual(20);
-    expect(d.reverseName.mock.calls.length).toBeGreaterThan(10);
+    expect(d.reverseName.mock.calls.length).toBeGreaterThan(30);
+    expect(d.reverseName.mock.calls.length).toBeLessThanOrEqual(80);
+
+    const veryLong: LonLat[] = [[0, 0], [54, 0]];
+    const e = deps({ driveRoute: vi.fn(async () => ({ distanceKm: 6000, durationMin: 4500, line: veryLong })) });
+    await buildCorridor(trip({}, true), NOW, e);
+    expect(e.reverseName.mock.calls.length).toBeLessThanOrEqual(80);
+    expect(e.reverseName.mock.calls.length).toBeGreaterThan(60);
   });
 
   it("lists no stops when the route is shorter than the spacing", async () => {

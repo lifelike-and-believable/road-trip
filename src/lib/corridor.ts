@@ -11,7 +11,9 @@ import { driveRoute, geocode, OsmError, reverseName } from "./osm";
 import { legsOf, type Place, type Trip } from "./trip";
 
 const MIN_SPACING_KM = 50;
-const MAX_ALONG_STOPS = 20;
+/* A town every 50 km, so a multi-day trip gets as many as it passes, up to about 3,800 km of road; past that
+   the spacing widens. At Nominatim's pace, 80 lookups take about 90 seconds. */
+const MAX_ALONG_STOPS = 80;
 /** Left for the two end zones when the spacing is widened to fit MAX_ALONG_STOPS. */
 const END_ZONE_RESERVE = 4;
 /** Nominatim's usage policy allows one request a second. */
