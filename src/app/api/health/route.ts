@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       ROUTINE_SECRET: has("ROUTINE_SECRET"),
       ROUTINE_FIRE_URL: has("ROUTINE_FIRE_URL"),
       ROUTINE_FIRE_TOKEN: has("ROUTINE_FIRE_TOKEN"),
-      redis: has("KV_REST_API_URL") || has("UPSTASH_REDIS_REST_URL"),
+      redis: (has("KV_REST_API_URL") || has("UPSTASH_REDIS_REST_URL")) && (has("KV_REST_API_TOKEN") || has("UPSTASH_REDIS_REST_TOKEN")),
     },
     listingsBy: listingsBy(),
   });
