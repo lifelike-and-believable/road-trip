@@ -48,7 +48,7 @@ npm run verify                     # typecheck, lint, unit tests, production bui
 
 - Settings: `.env.example` names every one. For a local board that talks to the real store you need `AUTH_SECRET`, `BOARD_PASSCODE`, `DOC_SALT`, `KV_REST_API_URL` and `KV_REST_API_TOKEN`; `vercel env pull .env.local` (Vercel CLI, after `vercel link`) fetches them, but that points local development at production data, so prefer a separate Upstash database for local work. `.env*` files are ignored by git except `.env.example`.
 - Unit tests (Vitest) stub the store, the map services and Claude, so they need no settings and cost nothing.
-- End-to-end specs: `npm run build && npm run start`, then `npx playwright test`. They stub the app's own API and the map tiles in the browser, so they also need no settings. `BASE_URL=<url> npx playwright test` runs them against a deployment instead, as the preview check does.
+- End-to-end specs: `npm run build && npm run start`, then `npx playwright test`. They stub the app's own API and the map tiles in the browser, so they also need no settings. `BASE_URL=<url> npx playwright test` runs them against a deployment instead, as the preview check does. CI's `verify` job also runs them against its own production build, on every pull request and every push to main.
 - `npm run live` checks the real map and Claude services, and `LIVE_SOURCES=1` or `LIVE_LISTINGS=1` add calls that cost money. Never run these without the owner's say-so.
 - `npm run typecheck` runs `next typegen` first; a route's `RouteContext` type comes from it, so a new route needs it before `tsc` passes.
 
