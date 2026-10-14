@@ -1,14 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const S = vi.hoisted(() => ({ docs: new Map<string, unknown>(), throws: false }));
+const S = vi.hoisted(() => ({ docs: new Map<string, unknown>(), throws: false, reads: 0 }));
 
 vi.mock("../../../../../lib/store", async (orig) => {
   const real = await orig<typeof import("../../../../../lib/store")>();
   return {
     ...real,
     getDoc: async (p: string) => {
+      S.reads++;
       if (S.throws) throw new Error("redis down");
       return S.docs.get(p) ?? null;
+    },
+    getDocs: async (ps: string[]) => {
+      S.reads++;
+      if (S.throws) throw new Error("redis down");
+      return ps.map((p) => S.docs.get(p) ?? null);
     },
   };
 });
@@ -26,6 +32,7 @@ const req = (headers: Record<string, string> = owner()) => new Request(`https://
 beforeEach(() => {
   S.docs.clear();
   S.throws = false;
+  S.reads = 0;
   S.docs.set(`trips/${ID}`, {
     id: ID, createdAt: at(-1), from: { label: "A" }, to: { label: "B" }, start: at(24), end: at(96), roundTrip: false, tz: "America/Toronto",
   });
@@ -59,6 +66,12 @@ describe("GET /api/trips/[id]/board", () => {
     expect(body.sources).toEqual({ count: 2 });
     expect(body.listings).toMatchObject({ tripId: ID });
     expect(body.plan.picks).toEqual([{ id: "aaaaaaaaaaaa" }]);
+  });
+
+  // One round trip to the store, not six, on every board load and every look while a trip is getting ready.
+  it("reads everything in one request to the store", async () => {
+    expect((await GET(req(), ctx())).status).toBe(200);
+    expect(S.reads).toBe(1);
   });
 
   it("is 404 for a trip that does not exist and 400 for an id that is not a trip's", async () => {

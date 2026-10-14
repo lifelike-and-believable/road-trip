@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { bumpCount, cleanPath, deleteDoc, getDoc, listDocs, readCount, setDoc } from "./store";
+import { bumpCount, cleanPath, deleteDoc, getDoc, getDocs, listDocs, readCount, setDoc } from "./store";
 
 type Call = { url: string; body: unknown };
 let calls: Call[];
@@ -57,6 +57,14 @@ describe("documents", () => {
     replies = [{ result: null }, { result: "{oops" }];
     expect(await getDoc("trips/a")).toBeNull();
     expect(await getDoc("trips/b")).toBeNull();
+  });
+
+  it("reads several documents in one request, in order, with null for any that is missing", async () => {
+    replies = [[{ result: '{"a":1}' }, { result: null }, { result: '{"b":2}' }]];
+    expect(await getDocs(["trips/t1", "plans/t1", "prep/t1"])).toEqual([{ a: 1 }, null, { b: 2 }]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://redis.test/pipeline");
+    expect(calls[0].body).toEqual([["GET", "doc:SALT:trips/t1"], ["GET", "doc:SALT:plans/t1"], ["GET", "doc:SALT:prep/t1"]]);
   });
 
   it("deletes a document and its collection entry", async () => {

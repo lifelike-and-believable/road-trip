@@ -5,7 +5,7 @@ import type { PlanDoc } from "../../../../../lib/plan";
 import type { PrepDoc } from "../../../../../lib/prep";
 import type { ListingsDoc } from "../../../../../lib/refresh";
 import type { SourceList } from "../../../../../lib/sources";
-import { getDoc } from "../../../../../lib/store";
+import { getDocs } from "../../../../../lib/store";
 import { isTripId, presentTrip, type Trip } from "../../../../../lib/trip";
 
 /* Everything one board screen needs, in one request: the trip, its corridor, how many
@@ -18,15 +18,12 @@ export async function GET(req: Request, ctx: RouteContext<"/api/trips/[id]/board
   if (!isTripId(id)) return Response.json({ code: "bad_id", error: "not a trip id" }, { status: 400 });
 
   try {
-    const trip = await getDoc<Trip>(`trips/${id}`);
+    // One request to the store for all six, since the board asks on every load and every few seconds while a trip gets ready.
+    const docs = await getDocs([`trips/${id}`, `corridors/${id}`, `sources/${id}`, `listings/${id}`, `plans/${id}`, `prep/${id}`]);
+    const [trip, corridor, sources, listings, plan, prep] = docs as [
+      Trip | null, Corridor | null, SourceList | null, ListingsDoc | null, PlanDoc | null, PrepDoc | null,
+    ];
     if (!trip) return Response.json({ code: "not_found", error: "no such trip" }, { status: 404 });
-    const [corridor, sources, listings, plan, prep] = await Promise.all([
-      getDoc<Corridor>(`corridors/${id}`),
-      getDoc<SourceList>(`sources/${id}`),
-      getDoc<ListingsDoc>(`listings/${id}`),
-      getDoc<PlanDoc>(`plans/${id}`),
-      getDoc<PrepDoc>(`prep/${id}`),
-    ]);
     return Response.json({
       trip: presentTrip(trip, new Date()),
       corridor,
