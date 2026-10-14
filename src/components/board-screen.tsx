@@ -114,7 +114,14 @@ export function BoardScreen() {
   // A look at the server that leaves the traveller's own plan alone, so it can never undo a pick that is still being saved.
   const look = useCallback(async () => {
     const r = await call<BoardData>(`/api/trips/${id}/board`);
-    if (r.ok) setLoad({ kind: "ready", data: r.value });
+    if (r.ok) {
+      // The same corridor, built at the same moment, keeps its object, so the map is not rebuilt on every look.
+      setLoad((prev) => {
+        const old = prev.kind === "ready" ? prev.data.corridor : null;
+        const same = old && r.value.corridor && old.builtAt === r.value.corridor.builtAt;
+        return { kind: "ready", data: same ? { ...r.value, corridor: old } : r.value };
+      });
+    }
     setNow(new Date());
   }, [id]);
 
@@ -194,8 +201,18 @@ export function BoardScreen() {
   // While the work is going on, look again every few seconds.
   useEffect(() => {
     if (!preparing || prepView?.settled) return;
-    const timer = setInterval(() => void look(), PREP_POLL_MS);
-    return () => clearInterval(timer);
+    // A hidden tab does not ask, for up to half an hour of preparation; it looks again as soon as it is shown.
+    const timer = setInterval(() => {
+      if (!document.hidden) void look();
+    }, PREP_POLL_MS);
+    const onShow = () => {
+      if (!document.hidden) void look();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onShow);
+    };
   }, [preparing, prepView?.settled, look]);
 
   async function save(next: Plan) {

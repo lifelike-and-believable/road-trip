@@ -27,16 +27,33 @@ export type Pick = {
   day?: string;
 };
 
+/* Building an Intl formatter is the slow part, and a board with hundreds of listings reads thousands of
+   times a render, so each kind of reading is built once per zone and kept. */
+const READINGS = {
+  day: { year: "numeric", month: "2-digit", day: "2-digit" },
+  time: { hour: "numeric", minute: "2-digit", hour12: true },
+  clock: { hour: "2-digit", minute: "2-digit", hourCycle: "h23" },
+  stamp: { hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" },
+  weekday: { weekday: "long" },
+} satisfies Record<string, Intl.DateTimeFormatOptions>;
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function reading(kind: keyof typeof READINGS, tz?: string): Intl.DateTimeFormat {
+  const key = `${kind}|${tz ?? "UTC"}`;
+  let f = formatters.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", ...READINGS[kind] });
+    formatters.set(key, f);
+  }
+  return f;
+}
+
 export function localDay(iso: string, tz?: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(iso),
-  );
+  return reading("day", tz).format(new Date(iso));
 }
 
 export function localTime(iso: string, tz?: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", hour: "numeric", minute: "2-digit", hour12: true }).format(
-    new Date(iso),
-  );
+  return reading("time", tz).format(new Date(iso));
 }
 
 type Visit = { leg: LegCorridor; stop: Stop; from: number; until: number };
@@ -135,7 +152,7 @@ export function passingNote(corridor: Corridor, stop: string, day: string, tz?: 
   const fromDay = localDay(iso(v.from), tz);
   const untilDay = localDay(iso(v.until), tz);
   if (fromDay === untilDay) return `You are near ${stop} from ${at(v.from)} to ${at(v.until)} (estimated)`;
-  const weekday = (d: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", weekday: "long" }).format(new Date(`${d}T12:00:00Z`));
+  const weekday = (d: string) => reading("weekday").format(new Date(`${d}T12:00:00Z`));
   return `You are near ${stop} from ${at(v.from)} ${weekday(fromDay)} to ${at(v.until)} ${weekday(untilDay)} (estimated)`;
 }
 
@@ -161,7 +178,7 @@ export function itineraryDays(itinerary: Itinerary, tz?: string): Array<{ day: s
 
 /** "09:00" for a time field: the 24-hour clock reading of an instant in the trip's zone. */
 export function clockTime(iso: string, tz?: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+  return reading("clock", tz).format(new Date(iso));
 }
 
 /** A clock time ("14:30") on a trip-local day, as an instant. Null for a time the clocks skip that day, or one that is not a time. */
@@ -172,9 +189,7 @@ export function instantIn(day: string, time: string, tz?: string): string | null
   const wall = Date.UTC(Number(d[1]), Number(d[2]) - 1, Number(d[3]), Number(t[1]), Number(t[2]));
   // The zone's offset at a moment, from how that moment reads on its clock.
   const offset = (ms: number) => {
-    const p = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz ?? "UTC", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-    }).formatToParts(new Date(ms));
+    const p = reading("stamp", tz).formatToParts(new Date(ms));
     const n = (type: string) => Number(p.find((x) => x.type === type)?.value);
     return Date.UTC(n("year"), n("month") - 1, n("day"), n("hour"), n("minute")) - ms;
   };
@@ -190,7 +205,7 @@ export type Band = "morning" | "afternoon" | "evening" | "late";
 export const BAND_LABELS: Record<Band, string> = { morning: "Morning", afternoon: "Afternoon", evening: "Evening", late: "Late" };
 
 export function bandOf(iso: string, tz?: string): Band {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: tz ?? "UTC", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
+  const parts = reading("clock", tz).formatToParts(new Date(iso));
   const at = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
   const minutes = at("hour") * 60 + at("minute");
   if (minutes < 12 * 60) return "morning";
